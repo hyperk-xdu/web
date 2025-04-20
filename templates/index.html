@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能任务平台</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* 基础样式 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        /* 任务按钮样式 */
+        .task-section {
+            margin-bottom: 40px;
+        }
+
+        .task-button {
+            display: inline-block;
+            padding: 12px 25px;
+            margin: 8px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        /* 输出区域 */
+        #output {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 80px;
+        }
+
+        #status {
+            color: #34495e;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        /* 上传区域样式 */
+        .upload-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #ecf0f1;
+        }
+
+        #drop-zone {
+            border: 2px dashed #95a5a6;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        #drop-zone.dragover {
+            border-color: #2ecc71;
+            background-color: rgba(46, 204, 113, 0.1);
+        }
+
+        #drop-zone p {
+            color: #7f8c8d;
+            font-size: 16px;
+            margin: 0;
+        }
+
+        #filename {
+            margin-top: 20px;
+            padding: 12px;
+            width: 60%;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        #filename:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        #upload-status {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 14px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>多功能任务平台</h1>
+        
+        <!-- 任务执行区 -->
+        <div class="task-section">
+            <button id="task1" class="task-button">执行任务 1</button>
+            <button id="task2" class="task-button">执行任务 2</button>
+            <button id="task_bash" class="task-button">执行 Bash 脚本</button>
+            
+            <div id="output">
+                <p id="status">等待任务执行...</p>
+            </div>
+        </div>
+
+        <!-- 图片上传区 -->
+        <div class="upload-section">
+            <div id="drop-zone" 
+                 ondragover="dragOver(event)" 
+                 ondragleave="dragLeave(event)" 
+                 ondrop="drop(event)">
+                <p>将图片拖拽到此区域 或 点击选择文件</p>
+                <input type="text" 
+                       id="filename" 
+                       placeholder="输入自定义文件名（可选）"
+                       maxlength="50">
+            </div>
+            <p id="upload-status"></p>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

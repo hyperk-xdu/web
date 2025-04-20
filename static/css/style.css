@@ -1,0 +1,43 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    text-align: center;
+    padding: 50px;
+}
+
+.container {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.task-button {
+    padding: 15px 25px;
+    margin: 10px;
+    font-size: 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.task-button:hover {
+    background-color: #45a049;
+}
+
+#output {
+    margin-top: 20px;
+    font-size: 16px;
+    color: #333;
+    min-height: 50px;
+}
+
+#status {
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+}
