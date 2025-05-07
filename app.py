@@ -1,18 +1,25 @@
-from fastapi import FastAPI, Request
+from datetime import datetime
+import os
+import subprocess
+from fastapi import (
+    FastAPI, Request,
+    UploadFile, File, Form,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import (
+    JSONResponse, HTMLResponse, RedirectResponse
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-import subprocess
-import os
-from tasks import task1, task2
-from fastapi import UploadFile, File, Form
-import os
-from datetime import datetime
 
+from tasks import task1, task2   # 你的自定义任务模块
+
+# ------------------------------------------------------------------------------
+# FastAPI 基础
+# ------------------------------------------------------------------------------
 app = FastAPI()
 
-# CORS配置
+# ---- CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,14 +27,66 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 静态文件和模板配置
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# ---- 目录确保存在
+BASE_DIR = os.path.dirname(__file__)
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+PICTURE_DIR = os.path.join(BASE_DIR, "pictures")
 
-@app.get("/")
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+for d in (STATIC_DIR, TEMPLATE_DIR, PICTURE_DIR):
+    os.makedirs(d, exist_ok=True)
 
+# ---- Mount Static & Templates
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATE_DIR)
+
+
+# ------------------------------------------------------------------------------
+# 工具函数
+# ------------------------------------------------------------------------------
+def render(request: Request, template: str, active: str):
+    """给模板统一注入 nav 高亮字段"""
+    return templates.TemplateResponse(
+        template,
+        {"request": request, "active_page": active},
+    )
+
+
+def _script_path(name: str) -> str:
+    """
+    生成 Bash 脚本绝对路径，支持
+    - <项目根>/tasks/<name>
+    - <项目根>/<name>
+    """
+    cand1 = os.path.join(BASE_DIR, "tasks", name)
+    cand2 = os.path.join(BASE_DIR, name)
+    return cand1 if os.path.isfile(cand1) else cand2
+
+
+# ------------------------------------------------------------------------------
+# 页面路由
+# ------------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+async def index():
+    # 你也可以改成 render(..., "index.html", "tasks")
+    return RedirectResponse(url="/tasks")
+
+@app.get("/tasks", response_class=HTMLResponse)
+async def task_page(request: Request):
+    return render(request, "tasks.html", "tasks")
+
+@app.get("/files", response_class=HTMLResponse)
+async def files_page(request: Request):
+    return render(request, "files.html", "files")
+
+@app.get("/docs", response_class=HTMLResponse)
+async def docs_page(request: Request):
+    return render(request, "docs.html", "docs")
+
+
+# ------------------------------------------------------------------------------
+# 业务 API
+# ------------------------------------------------------------------------------
 @app.get("/run_task/{task_id}")
 async def run_task(task_id: int):
     try:
@@ -39,71 +98,59 @@ async def run_task(task_id: int):
             raise ValueError("无效的任务ID")
         return JSONResponse({"message": f"任务 {task_id} 执行成功: {result}"})
     except Exception as e:
-        return JSONResponse({"message": f"执行失败: {str(e)}"}, status_code=500)
+        return JSONResponse({"message": f"执行失败: {e}"}, status_code=500)
+
 
 @app.get("/run_bash")
 async def run_bash():
     try:
-        script_path = os.path.join(os.path.dirname(__file__), "tasks", "run_bash.sh")
+        script_path = _script_path("run_bash.sh")
         result = subprocess.run(
             ["bash", script_path],
             capture_output=True,
             text=True,
-            encoding='utf-8',  # 指定编码
-            errors='ignore',   # 忽略解码错误
-            check=True
+            encoding="utf-8",
+            errors="ignore",
+            check=True,
         )
-        return JSONResponse({
-            "message": f"标准输出: {result.stdout.strip()}\n错误输出: {result.stderr.strip()}"
-        })
+        return {
+            "message": (
+                f"标准输出:\n{result.stdout.strip()}"
+                f"\n\n错误输出:\n{result.stderr.strip() or 'None'}"
+            )
+        }
     except subprocess.CalledProcessError as e:
         return JSONResponse({"message": f"脚本执行失败: {e.stderr}"}, status_code=500)
     except Exception as e:
-        return JSONResponse({"message": f"系统错误: {str(e)}"}, status_code=500)
+        return JSONResponse({"message": f"系统错误: {e}"}, status_code=500)
 
 
-
-
-# 在已有代码后添加以下路由
 @app.post("/upload")
 async def upload_image(
     file: UploadFile = File(...),
-    filename: str = Form(...)
+    filename: str = Form(...),
 ):
     try:
-        # 创建图片目录
-        save_dir = "pictures"
-        os.makedirs(save_dir, exist_ok=True)
-        
-        # 验证文件类型
+        # ---- MIME 校验
         if not file.content_type.startswith("image/"):
-            return JSONResponse(
-                {"detail": "仅支持图片文件"},
-                status_code=400
-            )
-        
-        # 生成安全路径
-        file_ext = file.filename.split('.')[-1]
-        safe_filename = f"{filename.split('.')[0]}.{file_ext}"
-        save_path = os.path.join(save_dir, safe_filename)
-        
-        # 防止覆盖已有文件
+            return JSONResponse({"detail": "仅支持图片文件"}, status_code=400)
+
+        # ---- 生成安全文件名
+        ext = file.filename.rsplit(".", 1)[-1].lower()
+        stem = filename.rsplit(".", 1)[0] or "image"
+        safe_name = f"{stem}.{ext}"
+        save_path = os.path.join(PICTURE_DIR, safe_name)
+
+        # ---- 重名加时间戳
         if os.path.exists(save_path):
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            safe_filename = f"{filename.split('.')[0]}_{timestamp}.{file_ext}"
-            save_path = os.path.join(save_dir, safe_filename)
-        
-        # 保存文件
-        contents = await file.read()
-        with open(save_path, "wb") as f:
-            f.write(contents)
-            
-        return {"filename": safe_filename}
-    
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_name = f"{stem}_{timestamp}.{ext}"
+            save_path = os.path.join(PICTURE_DIR, safe_name)
+
+        # ---- 保存文件
+        with open(save_path, "wb") as fp:
+            fp.write(await file.read())
+
+        return {"filename": safe_name}
     except Exception as e:
-        return JSONResponse(
-            {"detail": f"上传失败: {str(e)}"},
-            status_code=500
-        )
-
-
+        return JSONResponse({"detail": f"上传失败: {e}"}, status_code=500)

@@ -9,32 +9,20 @@
 </head>
 <body>
     <nav class="hexo-nav">
-        <div class="nav-container">
-          <a href="/"         class="brand"><i class="fas fa-rocket"></i> TaskCenter</a>
-      
-          <div class="nav-menu">
-            <!-- 任务面板独立页面 -->
-            <a href="../templates/tasks" class="nav-item {% if active_page=='tasks' %}active{% endif %}">
-              <i class="fas fa-tasks"></i> 任务面板
-            </a>
-      
-            <!-- 文件中心独立页面 -->
-            <a href="../templates/files" class="nav-item {% if active_page=='files' %}active{% endif %}">
-              <i class="fas fa-cloud-upload-alt"></i> 文件中心
-            </a>
-      
-            <!-- 文档中心独立页面 -->
-            <a href="../templates/docs.html"  class="nav-item {% if active_page=='docs'  %}active{% endif %}">
-              <i class="fas fa-book"></i> 文档中心
-            </a>
-          </div>
-      
-          <div class="nav-extra">
-            <a href="#" class="nav-icon"><i class="fas fa-bell"></i></a>
-            <a href="#" class="nav-icon"><i class="fas fa-user"></i></a>
-          </div>
+        <div class="nav-menu">
+          <!-- ↓↓↓ 关键：前面加 / 变成绝对路径，与 FastAPI 路由完全一致 -->
+          <a href="../templates/tasks" class="nav-item {% if active_page=='tasks' %}active{% endif %}">
+            <i class="fas fa-tasks"></i> 任务面板
+          </a>
+          <a href="../templates/files" class="nav-item {% if active_page=='files' %}active{% endif %}">
+            <i class="fas fa-cloud-upload-alt"></i> 文件中心
+          </a>
+          <a href="../templates/docs"  class="nav-item {% if active_page=='docs'  %}active{% endif %}">
+            <i class="fas fa-book"></i> 文档中心
+          </a>
         </div>
       </nav>
+      
       
 
     <div class="hexo-container">
