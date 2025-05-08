@@ -14,13 +14,37 @@
     <div class="nav-menu">
       <a href="/tasks" class="nav-item {% if active_page=='tasks' %}active{% endif %}"><i class="fas fa-tasks"></i> 任务面板</a>
       <a href="/files" class="nav-item {% if active_page=='files' %}active{% endif %}"><i class="fas fa-cloud-upload-alt"></i> 文件中心</a>
-      <a href="/doss" class="nav-item {% if active_page=='doss' %}active{% endif %}"><i class="fas fa-cloud-upload-alt"></i> doss</a>
+    </div>
+    <div class="nav-extra" style="display: flex; gap: 15px;">
+      <div class="nav-icon" title="实验室信息" style="position: relative;">
+        <i class="fas fa-user"></i>
+        <div class="lab-info" style="display: none; position: absolute; top: 30px; right: 0; background: white; border: 1px solid #ddd; padding: 10px; width: 200px; z-index: 9999;">
+          <strong>实验室信息：</strong>
+          <p>我们专注于开发最方便，最有效的能源分析和检测系统</p>
+          <p>负责人：刘晅润</p>
+        </div>
+      </div>
+      <a class="nav-icon" href="/email" title="发送建议">
+        <i class="fas fa-bell"></i>
+      </a>
     </div>
   </div>
+  
 </nav>
 <div class="hexo-container">
   {% block content %}{% endblock %}
 </div>
 <script src="/static/js/main.js"></script>
+<script>
+  // 实验室信息悬停交互逻辑
+  document.addEventListener('DOMContentLoaded', () => {
+    const userIcon = document.querySelector('.fa-user');
+    const infoBox = document.querySelector('.lab-info');
+    if (userIcon && infoBox) {
+      userIcon.addEventListener('mouseenter', () => infoBox.style.display = 'block');
+      userIcon.addEventListener('mouseleave', () => infoBox.style.display = 'none');
+    }
+  });
+</script>
 </body>
 </html>

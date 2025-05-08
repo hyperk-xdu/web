@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block title %}任务中心{% endblock %}
+{% block title %}文件中心{% endblock %}
 {% block content %}
 <section class="task-panel">
-  <h2 class="panel-title"><i class="fas fa-microchip"></i> 控制台</h2>
+  <h2 class="panel-title">文件管理</h2>
   <div class="button-group">
-    <button class="hexo-btn primary" id="task1"><i class="fas fa-cog"></i> 任务 1</button>
-    <button class="hexo-btn success" id="task2"><i class="fas fa-cogs"></i> 任务 2</button>
-    <button class="hexo-btn warning" id="task_bash"><i class="fas fa-terminal"></i> Bash</button>
+    <button class="hexo-btn primary" id="task1">执行任务 1</button>
+    <button class="hexo-btn success" id="task2">执行任务 2</button>
+    <button class="hexo-btn warning" id="task_bash">执行 Bash</button>
   </div>
-  <div class="output-box"><pre id="status">等待任务执行...</pre></div>
+  <div class="output-box"><pre id="status">等待执行</pre></div>
 </section>
+
 <section class="upload-panel">
-  <h2 class="panel-title"><i class="fas fa-upload"></i> 上传文件</h2>
-  <div class="upload-zone" id="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
-    <div class="upload-meta">
-      <p>拖拽上传图片或点击选择</p>
-      <div class="file-input">
-        <input type="text" id="filename" placeholder="输入自定义文件名..." class="hexo-input">
-      </div>
-    </div>
+  <h2 class="panel-title">上传文件</h2>
+  <div class="upload-zone" id="drop-zone">
+    <p>拖拽图片或点击上传</p>
+    <input type="text" id="filename" placeholder="输入文件名">
+    <div id="upload-status" class="upload-status"></div>
   </div>
-  <div id="upload-status" class="upload-status"></div>
+  <div class="button-group" style="margin-top: 20px;">
+    <a href="/search" class="hexo-btn info">跳转到搜索页</a>
+  </div>
 </section>
 {% endblock %}

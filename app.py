@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import os, subprocess
 from tasks import task1, task2
 from datetime import datetime
-
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 app = FastAPI(docs_url="/swagger", redoc_url=None)
 app.add_middleware(
     CORSMiddleware,
@@ -41,6 +43,39 @@ def files_page(request: Request):
 def search_page(request: Request):
     return templates.TemplateResponse("search.html", {"request": request})
 
+@app.get("/email", response_class=HTMLResponse)
+def email_form(request: Request):
+    return templates.TemplateResponse("email.html", {"request": request})
+
+
+@app.post("/send_email", response_class=HTMLResponse)
+def send_email(request: Request, message: str = Form(...)):
+    try:
+        sender = "1748476648@qq.com"
+        recipient = "kanghuibin@outlook.com"
+
+        from email.header import Header
+
+        msg = MIMEText(message, "plain", "utf-8")
+        msg["Subject"] = Header("来自平台用户的建议", "utf-8")
+        msg["From"] = sender
+        msg["To"] = recipient
+
+        server = smtplib.SMTP_SSL("smtp.qq.com", 465)
+        server.login(sender, "gosqqzivffcrejbh")
+        server.send_message(msg)
+        server.quit()
+
+        return templates.TemplateResponse("email.html", {
+            "request": request,
+            "success": True
+        })
+    except Exception as e:
+        return templates.TemplateResponse("email.html", {
+            "request": request,
+            "success": False,
+            "error": str(e)
+        })
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), filename: str = Form(...)):
     ext = file.filename.split(".")[-1].lower()

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}联系实验室{% endblock %}
+{% block content %}
+<section class="task-panel">
+  <h2 class="panel-title">给我们发送建议</h2>
+  {% if success is defined %}
+    {% if success %}
+      <div style="padding:10px; background:#e0ffe0; color:#2c662d; border:1px solid #b2d8b2; border-radius:5px; margin-bottom:20px;">
+        邮件发送成功！我们会尽快查看您的反馈。
+      </div>
+    {% else %}
+      <div style="padding:10px; background:#ffe0e0; color:#a94442; border:1px solid #e0b4b4; border-radius:5px; margin-bottom:20px;">
+        邮件发送失败：{{ error }}
+      </div>
+    {% endif %}
+  {% endif %}
+
+  <form method="post" action="/send_email">
+    <textarea name="message" rows="6" style="width: 100%; padding: 10px;" placeholder="请输入您的建议..."></textarea>
+    <br><br>
+    <button class="hexo-btn primary" type="submit">发送邮件</button>
+  </form>
+</section>
+{% endblock %}
