@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}数据可视化{% endblock %}
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% endblock %}
+{% block content %}
+<section class="task-panel">
+  <h2 class="panel-title">数据可视化展示</h2>
+
+  <form method="post" enctype="multipart/form-data" action="/plot">
+    <input type="file" name="file" accept=".csv" onchange="this.form.submit()">
+  </form>
+
+  {% if columns %}
+    <form method="post" action="/plot_select">
+      <input type="hidden" name="filename" value="{{ filename }}">
+      <p style="margin-top: 20px;">选择要显示的列：</p>
+      {% for col in columns %}
+        <label><input type="checkbox" name="columns" value="{{ col }}" checked> {{ col }}</label><br>
+      {% endfor %}
+      <button class="hexo-btn primary" style="margin-top: 10px;" type="submit">更新图表</button>
+    </form>
+  {% endif %}
+
+  {% if error %}
+    <p style="color: red;">{{ error }}</p>
+  {% endif %}
+
+  {% if plot_data %}
+    <div id="plot" style="height: 500px; margin-top: 30px;"></div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const data = {{ plot_data | tojson | safe }};
+        const layout = {
+          title: '交互式波形图',
+          xaxis: { title: '{{ x_label }}', showgrid: true },
+          yaxis: { title: '值', showgrid: true },
+          hovermode: 'closest',
+          margin: { t: 50 },
+          plot_bgcolor: '#f8f9fa',
+          paper_bgcolor: '#fff'
+        };
+        Plotly.newPlot('plot', data, layout);
+      });
+    </script>
+  {% endif %}
+</section>
+{% endblock %}

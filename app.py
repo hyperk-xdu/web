@@ -9,6 +9,11 @@ from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
+import pandas as pd
+import json
+import os
+from typing import List
+
 app = FastAPI(docs_url="/swagger", redoc_url=None)
 app.add_middleware(
     CORSMiddleware,
@@ -16,7 +21,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+UPLOAD_DIR = "uploaded_csv"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 BASE_DIR = os.path.dirname(__file__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -47,6 +53,63 @@ def search_page(request: Request):
 def email_form(request: Request):
     return templates.TemplateResponse("email.html", {"request": request})
 
+@app.get("/plot", response_class=HTMLResponse)
+def plot_page(request: Request):
+    return templates.TemplateResponse("plot.html", {"request": request})
+
+@app.post("/plot", response_class=HTMLResponse)
+async def plot_csv_upload(request: Request, file: UploadFile = File(...)):
+    df = pd.read_csv(file.file)
+    filename = f"{UPLOAD_DIR}/last_uploaded.csv"
+    df.to_csv(filename, index=False)
+    x_col = df.columns[0]
+    columns = df.columns[1:].tolist()
+    return templates.TemplateResponse("plot.html", {
+        "request": request,
+        "columns": columns,
+        "filename": filename,
+        "x_label": x_col
+    })
+
+
+@app.post("/plot_select", response_class=HTMLResponse)
+def plot_selected(
+    request: Request,
+    filename: str = Form(...),
+    columns: List[str] = Form(...)
+):
+    df = pd.read_csv(filename)
+    x_col = df.columns[0]
+
+    if not columns:
+        return templates.TemplateResponse("plot.html", {
+            "request": request,
+            "plot_data": None,
+            "columns": df.columns[1:].tolist(),
+            "filename": filename,
+            "error": "请选择至少一个通道列"
+        })
+
+    data = []
+    for col in columns:
+        trace = {
+            "x": df[x_col].tolist(),
+            "y": df[col].tolist(),
+            "type": "scatter",
+            "mode": "lines+markers",
+            "name": col
+        }
+        data.append(trace)
+    print("传入的列：", columns)
+    print("生成数据：", data)
+
+    return templates.TemplateResponse("plot.html", {
+        "request": request,
+        "plot_data": json.dumps(data),
+        "x_label": x_col,
+        "columns": df.columns[1:].tolist(),
+        "filename": filename
+    })
 
 @app.post("/send_email", response_class=HTMLResponse)
 def send_email(request: Request, message: str = Form(...)):
