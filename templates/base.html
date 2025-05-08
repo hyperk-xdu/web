@@ -2,39 +2,25 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>{% block title %}TaskCenter{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}任务平台{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
   <link rel="stylesheet" href="/static/css/style.css">
-  {% block head %}{% endblock %}
 </head>
 <body>
-
 <nav class="hexo-nav">
   <div class="nav-container">
     <a href="/" class="brand"><i class="fas fa-rocket"></i> TaskCenter</a>
-
     <div class="nav-menu">
-      <a href="/tasks" class="nav-item {% if active_page=='tasks' %}active{% endif %}">
-         <i class="fas fa-tasks"></i> 任务面板</a>
-      <a href="/files" class="nav-item {% if active_page=='files' %}active{% endif %}">
-         <i class="fas fa-cloud-upload-alt"></i> 文件中心</a>
-      <a href="/docs"  class="nav-item {% if active_page=='docs'  %}active{% endif %}">
-         <i class="fas fa-book"></i> 文档中心</a>
-    </div>
-
-    <div class="nav-extra">
-      <a class="nav-icon"><i class="fas fa-bell"></i></a>
-      <a class="nav-icon"><i class="fas fa-user"></i></a>
+      <a href="/tasks" class="nav-item {% if active_page=='tasks' %}active{% endif %}"><i class="fas fa-tasks"></i> 任务面板</a>
+      <a href="/files" class="nav-item {% if active_page=='files' %}active{% endif %}"><i class="fas fa-cloud-upload-alt"></i> 文件中心</a>
+      <a href="/doss" class="nav-item {% if active_page=='doss' %}active{% endif %}"><i class="fas fa-cloud-upload-alt"></i> doss</a>
     </div>
   </div>
 </nav>
-
 <div class="hexo-container">
   {% block content %}{% endblock %}
 </div>
-
-<script src="../static/js/main.js"></script>
-{% block script %}{% endblock %}
+<script src="/static/js/main.js"></script>
 </body>
 </html>

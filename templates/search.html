@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}搜索页面{% endblock %}
+{% block content %}
+<section class="task-panel">
+  <h2 class="panel-title">搜索界面</h2>
+  <form method="get" action="#">
+    <input type="text" placeholder="输入关键词..." style="width: 60%; padding: 8px;">
+    <button class="hexo-btn primary" type="submit">搜索</button>
+  </form>
+  <p style="margin-top: 20px;">此处可以展示搜索结果列表、文档索引、或其他信息展示组件。</p>
+</section>
+{% endblock %}
