@@ -1,48 +1,231 @@
 {% extends "base.html" %}
 {% block title %}数据可视化{% endblock %}
 {% block head %}
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+<style>
+    .controls-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .column-selector {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+    }
+    .axis-selector {
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 8px;
+    }
+    canvas {
+        width: 100%;
+        height: 500px;
+        border: 1px solid #dee2e6;
+        background: white;
+    }
+    .legend {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+    }
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+    }
+</style>
+
 {% endblock %}
 {% block content %}
+
 <section class="task-panel">
   <h2 class="panel-title">数据可视化展示</h2>
 
   <form method="post" enctype="multipart/form-data" action="/plot">
-    <input type="file" name="file" accept=".csv" onchange="this.form.submit()">
+    <input type="file" name="file" accept=".csv" required
+           onchange="this.form.submit()">
   </form>
 
-  {% if columns %}
-    <form method="post" action="/plot_select">
-      <input type="hidden" name="filename" value="{{ filename }}">
-      <p style="margin-top: 20px;">选择要显示的列：</p>
-      {% for col in columns %}
-        <label><input type="checkbox" name="columns" value="{{ col }}" checked> {{ col }}</label><br>
-      {% endfor %}
-      <button class="hexo-btn primary" style="margin-top: 10px;" type="submit">更新图表</button>
-    </form>
+{% if columns %}
+
+  <form method="post" action="/plot_select">
+    <div class="controls-container">
+      <div class="axis-selector">
+        <h4>选择X轴：</h4>
+        <select name="x_col" class="form-select">
+          {% for col in columns %}
+          <option value="{{ col }}" 
+            {% if x_col == col %}selected{% endif %}>{{ col }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+```
+  <div class="column-selector">
+    <h4>选择显示变量：</h4>
+    {% for col in columns %}
+    {% if col != x_col %}
+    <label class="d-block">
+      <input type="checkbox" name="columns" value="{{ col}}"
+        {% if col in selected_columns %}checked{% endif %}> {{ col }}
+    </label>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<input type="hidden" name="filename" value="{{ filename }}">
+<button class="hexo-btn primary" type="submit">更新图表</button>
+```
+
+  </form>
   {% endif %}
 
-  {% if error %}
-    <p style="color: red;">{{ error }}</p>
+{% if error %}
+
+  <div class="alert alert-danger mt-3">{{ error }}</div>
   {% endif %}
 
-  {% if plot_data %}
-    <div id="plot" style="height: 500px; margin-top: 30px;"></div>
-    <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        const data = {{ plot_data | tojson | safe }};
-        const layout = {
-          title: '交互式波形图',
-          xaxis: { title: '{{ x_label }}', showgrid: true },
-          yaxis: { title: '值', showgrid: true },
-          hovermode: 'closest',
-          margin: { t: 50 },
-          plot_bgcolor: '#f8f9fa',
-          paper_bgcolor: '#fff'
-        };
-        Plotly.newPlot('plot', data, layout);
-      });
-    </script>
-  {% endif %}
+  <div class="mt-4">
+    <canvas id="waveformCanvas"></canvas>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <script>
+    // 颜色生成器
+    function* colorGenerator() {
+      const colors = [
+        '#4e79a7', '#e15759', '#76b7b2', '#f28e2b',
+        '#edc948', '#b07aa1', '#ff9da7', '#9c755f'
+      ];
+      let index = 0;
+      while(true) {
+        yield colors[index % colors.length];
+        index++;
+      }
+    }
+
+    function drawWaveform(data, xCol) {
+        const canvas = document.getElementById('waveformCanvas');
+        const ctx = canvas.getContext('2d');
+        const legend = document.getElementById('legend');
+        
+        // 清空画布和图例
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        legend.innerHTML = '';
+
+        // 自动调整尺寸（考虑设备像素比）
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * devicePixelRatio;
+        canvas.height = rect.height * devicePixelRatio;
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+
+        // 获取X轴原始数据
+        const xSeries = data.find(d => d.name === xCol);
+        if (!xSeries) return;
+        
+        // 计算数据范围
+        const xValues = xSeries.x;
+        const xMin = Math.min(...xValues);
+        const xMax = Math.max(...xValues);
+        
+        const yValues = data.filter(d => d.name !== xCol).flatMap(d => d.y);
+        const yMin = Math.min(...yValues);
+        const yMax = Math.max(...yValues);
+
+        // 设置绘图区域边距
+        const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+        const plotWidth = canvas.width / devicePixelRatio - margin.left - margin.right;
+        const plotHeight = canvas.height / devicePixelRatio - margin.top - margin.bottom;
+
+        // 计算缩放比例（基于物理像素）
+        const xScale = plotWidth / (xMax - xMin || 1);
+        const yScale = plotHeight / (yMax - yMin || 1);
+
+        // 绘制坐标轴系统
+        ctx.save();
+        ctx.translate(margin.left, margin.top);
+
+        // 绘制Y轴
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, plotHeight);
+        ctx.strokeStyle = '#495057';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 绘制X轴
+        ctx.beginPath();
+        ctx.moveTo(0, plotHeight);
+        ctx.lineTo(plotWidth, plotHeight);
+        ctx.stroke();
+
+        // 添加坐标轴标签（示例）
+        ctx.fillStyle = '#495057';
+        ctx.font = '12px Arial';
+        
+        // X轴标签
+        ctx.textAlign = 'center';
+        ctx.fillText(xCol, plotWidth/2, plotHeight + 20);
+        
+        // Y轴标签
+        ctx.save();
+        ctx.rotate(-Math.PI/2);
+        ctx.textAlign = 'center';
+        ctx.fillText('Value', -plotHeight/2, -30);
+        ctx.restore();
+
+        // 绘制波形数据
+        const colors = colorGenerator();
+        data.filter(d => d.name !== xCol).forEach(series => {
+            ctx.beginPath();
+            ctx.strokeStyle = colors.next().value;
+            ctx.lineWidth = 2 * devicePixelRatio;
+
+            series.x.forEach((xVal, index) => {
+                const x = (xVal - xMin) * xScale;
+                const y = plotHeight - (series.y[index] - yMin) * yScale;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            // 添加图例
+            const legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            legendItem.innerHTML = `
+                <div class="legend-color" style="background:${ctx.strokeStyle}"></div>
+                ${series.name}
+            `;
+            legend.appendChild(legendItem);
+        });
+
+        ctx.restore();
+    }
+
+    // 初始化绘制
+    {% if plot_data and x_col %}
+    try {
+      const plotData = {{ plot_data | tojson | safe }};
+      drawWaveform(plotData, "{{ x_col }}");
+    } catch(e) {
+      console.error('绘图错误:', e);
+    }
+    {% endif %}
+  </script>
+
 </section>
 {% endblock %}
+

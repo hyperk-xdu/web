@@ -59,57 +59,78 @@ def plot_page(request: Request):
 
 @app.post("/plot", response_class=HTMLResponse)
 async def plot_csv_upload(request: Request, file: UploadFile = File(...)):
-    df = pd.read_csv(file.file)
-    filename = f"{UPLOAD_DIR}/last_uploaded.csv"
-    df.to_csv(filename, index=False)
-    x_col = df.columns[0]
-    columns = df.columns[1:].tolist()
-    return templates.TemplateResponse("plot.html", {
-        "request": request,
-        "columns": columns,
-        "filename": filename,
-        "x_label": x_col
-    })
-
-
-@app.post("/plot_select", response_class=HTMLResponse)
-def plot_selected(
-    request: Request,
-    filename: str = Form(...),
-    columns: List[str] = Form(...)
-):
-    df = pd.read_csv(filename)
-    x_col = df.columns[0]
-
-    if not columns:
+    try:
+        # 读取并保存文件
+        df = pd.read_csv(file.file)
+        filename = f"{UPLOAD_DIR}/{file.filename}"
+        df.to_csv(filename, index=False)
+        
+        # 初始化选择（默认第一列为X轴）
+        columns = df.columns.tolist()
         return templates.TemplateResponse("plot.html", {
             "request": request,
-            "plot_data": None,
-            "columns": df.columns[1:].tolist(),
-            "filename": filename,
-            "error": "请选择至少一个通道列"
+            "columns": columns,
+            "x_col": columns[0],
+            "selected_columns": columns[1:2] if len(columns) >1 else [],
+            "filename": filename
+        })
+        
+    except Exception as e:
+        return templates.TemplateResponse("plot.html", {
+            "request": request,
+            "error": f"文件处理错误: {str(e)}"
         })
 
-    data = []
-    for col in columns:
-        trace = {
-            "x": df[x_col].tolist(),
-            "y": df[col].tolist(),
-            "type": "scatter",
-            "mode": "lines+markers",
-            "name": col
-        }
-        data.append(trace)
-    print("传入的列：", columns)
-    print("生成数据：", data)
-
-    return templates.TemplateResponse("plot.html", {
-        "request": request,
-        "plot_data": json.dumps(data),
-        "x_label": x_col,
-        "columns": df.columns[1:].tolist(),
-        "filename": filename
-    })
+@app.post("/plot_select", response_class=HTMLResponse)
+async def update_plot(
+    request: Request,
+    filename: str = Form(...),
+    x_col: str = Form(...),
+    columns: List[str] = Form(...)
+):
+    try:
+        df = pd.read_csv(filename)
+        all_columns = df.columns.tolist()
+        
+        # 验证列有效性
+        if x_col not in all_columns:
+            raise ValueError("无效的X轴列")
+            
+        invalid_cols = [col for col in columns if col not in all_columns]
+        if invalid_cols:
+            raise ValueError(f"无效的列: {', '.join(invalid_cols)}")
+        
+        # 生成绘图数据（包含X轴数据）
+        plot_data = [{
+            "name": x_col,
+            "x": df.index.tolist(),
+            "y": df[x_col].tolist()
+        }]
+        
+        for col in columns:
+            if col != x_col:
+                plot_data.append({
+                    "name": col,
+                    "x": df[x_col].tolist(),  # X轴数据
+                    "y": df[col].tolist()     # Y轴数据
+                })
+                
+        return templates.TemplateResponse("plot.html", {
+            "request": request,
+            "plot_data": plot_data,
+            "columns": all_columns,
+            "x_col": x_col,
+            "selected_columns": columns,
+            "filename": filename
+        })
+        
+    except Exception as e:
+        return templates.TemplateResponse("plot.html", {
+            "request": request,
+            "error": str(e),
+            "filename": filename,
+            "columns": pd.read_csv(filename).columns.tolist() if os.path.exists(filename) else []
+        })
 
 @app.post("/send_email", response_class=HTMLResponse)
 def send_email(request: Request, message: str = Form(...)):
