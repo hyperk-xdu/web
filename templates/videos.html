@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频中心</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2d3748;
+            color: #e2e8f0;
+        }
+        
+        .header {
+            background-color: #1a202c;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .nav-links li {
+            margin-right: 15px;
+        }
+        
+        .nav-links a {
+            color: #cbd5e0;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        
+        .nav-links a:hover {
+            background: #4a5568;
+        }
+        
+        .nav-links a.active {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .video-player-section {
+            background: #1a202c;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .video-container {
+            max-width: 100%;
+            background: #1a202c;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        video {
+            width: 100%;
+            display: block;
+            outline: none;
+        }
+        
+        .controls {
+            display: flex;
+            padding: 10px;
+            background: #2d3748;
+            gap: 10px;
+            border-radius: 0 0 8px 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        .video-library {
+            background: #1a202c;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .library-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .library-title h3 {
+            margin: 0;
+        }
+        
+        .refresh-btn {
+            background: transparent;
+            color: #4299e1;
+            border: 1px solid #4299e1;
+        }
+        
+        .video-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .video-item {
+            background: #2d3748;
+            border-radius: 6px;
+            padding: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .video-item:hover {
+            background: #4a5568;
+        }
+        
+        .video-item.selected {
+            border: 2px solid #4299e1;
+        }
+        
+        .video-thumb {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #1a202c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #718096;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .video-thumb::before {
+            content: "▶";
+            font-size: 32px;
+        }
+        
+        .video-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 14px;
+        }
+        
+        .empty-library {
+            text-align: center;
+            padding: 30px 0;
+            color: #718096;
+        }
+        
+        .notify {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            background: #48bb78;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            z-index: 100;
+        }
+        
+        .notify.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .video-list {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+  <div class="header">
+    <ul class="nav-links">
+      <!-- <li><a href="/">首页</a></li>
+      <li><a href="/tasks">任务</a></li>
+      <li><a href="/files">文件</a></li>
+      <li><a href="/doss">文档</a></li>
+      <li><a href="/search">搜索</a></li>
+      <li><a href="/email">邮件</a></li>
+      <li><a href="/plot">图表</a></li> -->
+      <li><a href="/videos" class="active">视频中心</a></li>
+    </ul>
+  </div>
+
+  <div class="container">
+    <div class="video-player-section">
+      <h2>凤凰眼视觉视频效果展示</h2>
+      <div class="video-container">
+        <video id="videoPlayer" controls onerror="handleVideoError()">
+          <source id="videoSource" src="{{ default_video }}" type="video/mp4" />
+          您的浏览器不支持视频播放功能。
+        </video>
+        <div class="controls">
+          <button class="btn" onclick="playVideo()">播放</button>
+          <button class="btn" onclick="pauseVideo()">暂停</button>
+          <button class="btn" onclick="changeVolume(0.1)">音量+</button>
+          <button class="btn" onclick="changeVolume(-0.1)">音量-</button>
+          <button class="btn" onclick="fullscreen()">全屏</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="video-library">
+      <div class="library-title">
+        <h3>视频资源库</h3>
+        <button class="btn refresh-btn" id="refreshBtn">刷新列表</button>
+      </div>
+
+      {% if video_files %}
+      <div class="video-list" id="videoList">
+        {% for video in video_files %}
+        <div class="video-item" data-filename="{{ video }}" onclick="loadVideo(this, '{{ video }}')">
+          <div class="video-thumb"></div>
+          <div class="video-name">{{ video }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-library">
+        <p>当前没有可用的视频资源</p>
+        <p>请联系管理员添加内容</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="notify" id="notify">视频切换成功</div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const defaultVideo = "{{ default_video }}".split('/').pop();
+      if (defaultVideo) {
+        document.querySelectorAll('.video-item').forEach(item => {
+          if (item.dataset.filename === defaultVideo) {
+            item.classList.add('selected');
+          }
+        });
+        setTimeout(() => {
+          const videoPlayer = document.getElementById('videoPlayer');
+          videoPlayer.play();
+        }, 500);
+      }
+    });
+
+    function loadVideo(elem, filename) {
+      const player = document.getElementById('videoPlayer');
+      player.src = `/stream_video/${filename}`;
+      player.load();
+      player.play();
+
+      document.querySelectorAll('.video-item').forEach(item => item.classList.remove('selected'));
+      elem.classList.add('selected');
+      showNotification('视频切换成功');
+    }
+
+    function playVideo() {
+      document.getElementById('videoPlayer').play();
+    }
+
+    function pauseVideo() {
+      document.getElementById('videoPlayer').pause();
+    }
+
+    function changeVolume(change) {
+      const videoPlayer = document.getElementById('videoPlayer');
+      videoPlayer.volume = Math.min(Math.max(videoPlayer.volume + change, 0), 1);
+    }
+
+    function fullscreen() {
+      const videoPlayer = document.getElementById('videoPlayer');
+      if (videoPlayer.requestFullscreen) {
+        videoPlayer.requestFullscreen();
+      } else if (videoPlayer.webkitRequestFullscreen) {
+        videoPlayer.webkitRequestFullscreen();
+      } else if (videoPlayer.msRequestFullscreen) {
+        videoPlayer.msRequestFullscreen();
+      }
+    }
+
+    function handleVideoError() {
+      showNotification("视频加载失败，请检查文件或联系管理员");
+    }
+
+    function showNotification(message) {
+      const notify = document.getElementById("notify");
+      notify.textContent = message;
+      notify.classList.add("show");
+      setTimeout(() => {
+        notify.classList.remove("show");
+      }, 3000);
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', async function () {
+      const response = await fetch('/videos');
+      const html = await response.text();
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = html;
+      const newVideoList = tempContainer.querySelector('#videoList');
+      if (newVideoList) {
+        document.getElementById('videoList').innerHTML = newVideoList.innerHTML;
+        showNotification('视频列表已更新');
+      } else {
+        showNotification('列表无变化');
+      }
+    });
+  </script>
+</body>
+</html>

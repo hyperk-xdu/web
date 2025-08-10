@@ -1,0 +1,3 @@
+timestamp,time_seq,voltage_a,voltage_b,voltage_c,current_a,current_b,current_c
+2025-07-19T21:22:17.964320,17,24.76,0.0,0.0,1.23,1.23,0.0
+2025-07-19T21:22:17.964504,18,24.76,0.0,0.0,1.23,1.23,0.0

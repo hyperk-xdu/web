@@ -71,3 +71,118 @@ body {
     padding: 10px;
     border-left: 4px solid #007acc;
   }
+  /* 通用样式 */
+.chart-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  padding: 15px;
+  position: relative;
+  height: 300px;
+}
+
+/* 统计卡片 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.stat-card {
+  background: linear-gradient(to bottom, #f1f5fd, #ffffff);
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid #e1e5f1;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.stat-card:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #3498db;
+}
+
+.stat-highlight {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e74c3c;
+}
+
+.stat-title {
+  color: #2c3e50;
+  font-size: 12px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #3498db;
+}
+
+/* 帮助按钮 */
+#helpBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+/* 分析结果区域 */
+#resultCard {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+/* 自定义卡片样式 */
+.card-header {
+  font-weight: 600;
+}
+
+/* 上传区 */
+#uploadForm, #loadForm, #analyzeForm {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+/* 列选择 */
+.columns-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #e8f0fe;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  margin-right: 5px;
+  margin-bottom: 5px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .stat-card {
+    padding: 10px;
+  }
+  
+  .stat-value {
+    font-size: 16px;
+  }
+}

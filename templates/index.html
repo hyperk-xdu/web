@@ -1,6 +1,504 @@
 {% extends "base.html" %}
-{% block title %}首页{% endblock %}
+
+{% block title %}任务管理 - 数据分析平台{% endblock %}
+
+{% block page_icon %}<i class="fas fa-tasks"></i>{% endblock %}
+{% block page_title %}任务管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .task-card {
+        transition: transform 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .task-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .task-status {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-ready {
+        background: #e8f5e8;
+        color: #27ae60;
+    }
+    
+    .status-running {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-completed {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .status-error {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .task-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        color: var(--primary-color);
+    }
+    
+    .task-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--secondary-color);
+    }
+    
+    .task-description {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+        line-height: 1.5;
+    }
+    
+    .task-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+    
+    .system-status {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .status-item {
+        text-align: center;
+    }
+    
+    .status-value {
+        font-size: 2rem;
+        font-weight: bold;
+        display: block;
+    }
+    
+    .status-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .log-container {
+        background: #1e1e1e;
+        color: #00ff00;
+        border-radius: 8px;
+        padding: 20px;
+        font-family: 'Courier New', monospace;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 20px;
+    }
+    
+    .log-entry {
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .log-timestamp {
+        color: #888;
+        margin-right: 10px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2>欢迎使用323实验室能源分析工具箱</h2>
-<p>可在上方导航栏选择您需要的功能</p>
+<!-- 系统状态概览 -->
+<div class="system-status">
+    <h4><i class="fas fa-server me-2"></i>系统状态概览</h4>
+    <div class="status-grid">
+        <div class="status-item">
+            <span class="status-value" id="cpuUsage">--</span>
+            <span class="status-label">CPU使用率</span>
+        </div>
+        <div class="status-item">
+            <span class="status-value" id="memoryUsage">--</span>
+            <span class="status-label">内存使用率</span>
+        </div>
+        <div class="status-item">
+            <span class="status-value" id="activeTasks">0</span>
+            <span class="status-label">活跃任务</span>
+        </div>
+        <div class="status-item">
+            <span class="status-value" id="uptime">--</span>
+            <span class="status-label">运行时间</span>
+        </div>
+    </div>
+</div>
+
+<!-- 快速操作 -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-bolt me-2"></i>快速操作</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <button class="btn btn-primary w-100 mb-3" onclick="runBashScript()">
+                    <i class="fas fa-terminal me-2"></i>执行系统脚本
+                </button>
+            </div>
+            <div class="col-md-6">
+                <button class="btn btn-success w-100 mb-3" onclick="refreshSystemStatus()">
+                    <i class="fas fa-sync-alt me-2"></i>刷新系统状态
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 任务列表 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-list me-2"></i>可用任务</h5>
+        <button class="btn btn-outline-primary btn-sm" onclick="refreshTasks()">
+            <i class="fas fa-sync-alt me-1"></i>刷新
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="row" id="taskContainer">
+            <!-- 任务1 -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card task-card position-relative">
+                    <div class="task-status status-ready">就绪</div>
+                    <div class="card-body text-center">
+                        <div class="task-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div class="task-title">数据处理任务</div>
+                        <div class="task-description">
+                            执行批量数据处理和清洗操作，包括异常值检测和数据标准化
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn btn-primary btn-sm" onclick="runTask(1)">
+                                <i class="fas fa-play me-1"></i>执行
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="viewTaskDetails(1)">
+                                <i class="fas fa-info-circle me-1"></i>详情
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 任务2 -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card task-card position-relative">
+                    <div class="task-status status-ready">就绪</div>
+                    <div class="card-body text-center">
+                        <div class="task-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="task-title">分析模型训练</div>
+                        <div class="task-description">
+                            训练机器学习模型用于数据分析和预测，包括特征工程和模型优化
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn btn-primary btn-sm" onclick="runTask(2)">
+                                <i class="fas fa-play me-1"></i>执行
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="viewTaskDetails(2)">
+                                <i class="fas fa-info-circle me-1"></i>详情
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 自定义任务 -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card task-card position-relative">
+                    <div class="task-status status-ready">就绪</div>
+                    <div class="card-body text-center">
+                        <div class="task-icon">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <div class="task-title">自定义任务</div>
+                        <div class="task-description">
+                            创建和执行自定义的数据处理脚本和分析任务
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn btn-success btn-sm" onclick="createCustomTask()">
+                                <i class="fas fa-plus me-1"></i>创建
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="manageCustomTasks()">
+                                <i class="fas fa-cog me-1"></i>管理
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 任务执行日志 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-file-alt me-2"></i>执行日志</h5>
+        <button class="btn btn-outline-danger btn-sm" onclick="clearLogs()">
+            <i class="fas fa-trash me-1"></i>清空日志
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="log-container" id="logContainer">
+            <div class="log-entry">
+                <span class="log-timestamp">[2025-01-15 10:30:00]</span>
+                <span>系统启动完成</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-timestamp">[2025-01-15 10:30:05]</span>
+                <span>等待任务执行...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 任务详情模态框 -->
+<div class="modal fade" id="taskDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">任务详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="taskDetailContent">
+                <!-- 动态加载任务详情 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="executeTaskBtn">执行任务</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let taskStatus = {};
+let logUpdateInterval;
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    refreshSystemStatus();
+    startLogUpdates();
+});
+
+// 执行任务
+async function runTask(taskId) {
+    const taskCard = document.querySelector(`[onclick="runTask(${taskId})"]`);
+    const originalText = taskCard.innerHTML;
+    
+    showLoading(taskCard, '执行中...');
+    addLog(`开始执行任务 ${taskId}`);
+    
+    try {
+        const response = await fetch(`/run_task/${taskId}`);
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert(result.message, 'success');
+            addLog(`任务 ${taskId} 执行成功: ${result.message}`);
+        } else {
+            showAlert(result.message, 'danger');
+            addLog(`任务 ${taskId} 执行失败: ${result.message}`);
+        }
+    } catch (error) {
+        showAlert('任务执行出错: ' + error.message, 'danger');
+        addLog(`任务 ${taskId} 执行异常: ${error.message}`);
+    } finally {
+        hideLoading(taskCard, originalText);
+    }
+}
+
+// 执行系统脚本
+async function runBashScript() {
+    const btn = document.querySelector('[onclick="runBashScript()"]');
+    const originalText = btn.innerHTML;
+    
+    showLoading(btn, '执行中...');
+    addLog('开始执行系统脚本');
+    
+    try {
+        const response = await fetch('/run_bash');
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('脚本执行成功: ' + result.message, 'success');
+            addLog(`系统脚本执行成功: ${result.message}`);
+        } else {
+            showAlert('脚本执行失败: ' + result.message, 'danger');
+            addLog(`系统脚本执行失败: ${result.message}`);
+        }
+    } catch (error) {
+        showAlert('脚本执行出错: ' + error.message, 'danger');
+        addLog(`系统脚本执行异常: ${error.message}`);
+    } finally {
+        hideLoading(btn, originalText);
+    }
+}
+
+// 查看任务详情
+function viewTaskDetails(taskId) {
+    const taskDetails = {
+        1: {
+            title: '数据处理任务',
+            description: '这个任务负责执行批量数据处理和清洗操作',
+            steps: [
+                '读取原始数据文件',
+                '执行数据清洗和预处理',
+                '异常值检测和处理',
+                '数据标准化和格式转换',
+                '生成处理报告'
+            ],
+            requirements: '需要足够的内存和存储空间',
+            estimatedTime: '5-10分钟'
+        },
+        2: {
+            title: '分析模型训练',
+            description: '训练机器学习模型用于数据分析和预测',
+            steps: [
+                '加载训练数据集',
+                '特征工程和选择',
+                '模型训练和调优',
+                '模型验证和测试',
+                '保存训练好的模型'
+            ],
+            requirements: '需要GPU支持（可选）',
+            estimatedTime: '15-30分钟'
+        }
+    };
+    
+    const task = taskDetails[taskId];
+    if (!task) return;
+    
+    document.getElementById('taskDetailContent').innerHTML = `
+        <h6>任务描述</h6>
+        <p>${task.description}</p>
+        
+        <h6>执行步骤</h6>
+        <ol>
+            ${task.steps.map(step => `<li>${step}</li>`).join('')}
+        </ol>
+        
+        <h6>系统要求</h6>
+        <p>${task.requirements}</p>
+        
+        <h6>预计耗时</h6>
+        <p>${task.estimatedTime}</p>
+    `;
+    
+    document.getElementById('executeTaskBtn').onclick = () => {
+        runTask(taskId);
+        bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+    };
+    
+    new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
+}
+
+// 刷新系统状态
+async function refreshSystemStatus() {
+    try {
+        // 模拟系统状态数据
+        const status = {
+            cpu: Math.floor(Math.random() * 50 + 20) + '%',
+            memory: Math.floor(Math.random() * 40 + 30) + '%',
+            activeTasks: Math.floor(Math.random() * 5),
+            uptime: Math.floor(Math.random() * 24) + 'h ' + Math.floor(Math.random() * 60) + 'm'
+        };
+        
+        document.getElementById('cpuUsage').textContent = status.cpu;
+        document.getElementById('memoryUsage').textContent = status.memory;
+        document.getElementById('activeTasks').textContent = status.activeTasks;
+        document.getElementById('uptime').textContent = status.uptime;
+        
+        addLog('系统状态已更新');
+    } catch (error) {
+        addLog('系统状态更新失败: ' + error.message);
+    }
+}
+
+// 添加日志
+function addLog(message) {
+    const logContainer = document.getElementById('logContainer');
+    const timestamp = new Date().toLocaleString();
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = 'log-entry';
+    logEntry.innerHTML = `
+        <span class="log-timestamp">[${timestamp}]</span>
+        <span>${message}</span>
+    `;
+    
+    logContainer.appendChild(logEntry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+    
+    // 限制日志条数
+    while (logContainer.children.length > 100) {
+        logContainer.removeChild(logContainer.firstChild);
+    }
+}
+
+// 清空日志
+function clearLogs() {
+    document.getElementById('logContainer').innerHTML = '';
+    addLog('日志已清空');
+}
+
+// 启动日志更新
+function startLogUpdates() {
+    logUpdateInterval = setInterval(() => {
+        // 定期刷新系统状态
+        refreshSystemStatus();
+    }, 30000); // 每30秒更新一次
+}
+
+// 创建自定义任务
+function createCustomTask() {
+    showAlert('自定义任务创建功能开发中...', 'info');
+}
+
+// 管理自定义任务
+function manageCustomTasks() {
+    showAlert('自定义任务管理功能开发中...', 'info');
+}
+
+// 刷新任务列表
+function refreshTasks() {
+    addLog('任务列表已刷新');
+    showAlert('任务列表已刷新', 'success');
+}
+
+// 页面卸载时清理
+window.addEventListener('beforeunload', function() {
+    if (logUpdateInterval) {
+        clearInterval(logUpdateInterval);
+    }
+});
+</script>
 {% endblock %}

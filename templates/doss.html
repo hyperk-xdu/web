@@ -1,25 +1,920 @@
 {% extends "base.html" %}
-{% block title %}文件中心{% endblock %}
-{% block content %}
-<section class="task-panel">
-  <h2 class="panel-title">文件管理</h2>
-  <div class="button-group">
-    <button class="hexo-btn primary" id="task1">执行任务 1</button>
-    <button class="hexo-btn success" id="task2">执行任务 2</button>
-    <button class="hexo-btn warning" id="task_bash">执行 Bash</button>
-  </div>
-  <div class="output-box"><pre id="status">等待执行</pre></div>
-</section>
 
-<section class="upload-panel">
-  <h2 class="panel-title">上传文件</h2>
-  <div class="upload-zone" id="drop-zone">
-    <p>拖拽图片或点击上传</p>
-    <input type="text" id="filename" placeholder="输入文件名">
-    <div id="upload-status" class="upload-status"></div>
-  </div>
-  <div class="button-group" style="margin-top: 20px;">
-    <a href="/search" class="hexo-btn info">跳转到搜索页</a>
-  </div>
-</section>
+{% block title %}数据操作系统 - 数据分析平台{% endblock %}
+
+{% block page_icon %}<i class="fas fa-database"></i>{% endblock %}
+{% block page_title %}数据操作系统 (DOSS){% endblock %}
+
+{% block extra_css %}
+<style>
+    .doss-dashboard {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .dashboard-item {
+        text-align: center;
+        padding: 20px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .dashboard-value {
+        font-size: 2rem;
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .dashboard-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .operation-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .operation-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .operation-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 2rem;
+        color: white;
+    }
+    
+    .icon-query {
+        background: linear-gradient(45deg, #3498db, #2980b9);
+    }
+    
+    .icon-transform {
+        background: linear-gradient(45deg, #27ae60, #219a52);
+    }
+    
+    .icon-analyze {
+        background: linear-gradient(45deg, #e74c3c, #c0392b);
+    }
+    
+    .icon-export {
+        background: linear-gradient(45deg, #f39c12, #e67e22);
+    }
+    
+    .icon-schedule {
+        background: linear-gradient(45deg, #9b59b6, #8e44ad);
+    }
+    
+    .icon-monitor {
+        background: linear-gradient(45deg, #1abc9c, #16a085);
+    }
+    
+    .query-builder {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .query-editor {
+        background: #2d3748;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 15px;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        min-height: 200px;
+        border: none;
+        resize: vertical;
+    }
+    
+    .query-editor:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--primary-color);
+    }
+    
+    .data-preview {
+        max-height: 400px;
+        overflow: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+    
+    .transformation-step {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .step-content {
+        flex: 1;
+    }
+    
+    .step-actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .pipeline-flow {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0;
+        overflow-x: auto;
+        padding: 10px;
+    }
+    
+    .pipeline-step {
+        min-width: 120px;
+        padding: 15px;
+        background: white;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        text-align: center;
+        position: relative;
+    }
+    
+    .pipeline-step.active {
+        border-color: var(--primary-color);
+        background: #e8f4ff;
+    }
+    
+    .pipeline-step.completed {
+        border-color: var(--success-color);
+        background: #e8f5e8;
+    }
+    
+    .pipeline-arrow {
+        font-size: 1.5rem;
+        color: #6c757d;
+    }
+    
+    .logs-container {
+        background: #1a1a1a;
+        color: #00ff00;
+        border-radius: 8px;
+        padding: 15px;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .log-line {
+        margin-bottom: 2px;
+        word-wrap: break-word;
+    }
+    
+    .log-timestamp {
+        color: #888;
+        margin-right: 10px;
+    }
+    
+    .log-level-info {
+        color: #00bfff;
+    }
+    
+    .log-level-warn {
+        color: #ffa500;
+    }
+    
+    .log-level-error {
+        color: #ff4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- DOSS 仪表板 -->
+<div class="doss-dashboard">
+    <h3><i class="fas fa-tachometer-alt me-2"></i>数据操作系统状态</h3>
+    <div class="dashboard-grid">
+        <div class="dashboard-item">
+            <span class="dashboard-value" id="connectedSources">5</span>
+            <span class="dashboard-label">已连接数据源</span>
+        </div>
+        <div class="dashboard-item">
+            <span class="dashboard-value" id="activeQueries">12</span>
+            <span class="dashboard-label">活跃查询</span>
+        </div>
+        <div class="dashboard-item">
+            <span class="dashboard-value" id="processedRows">2.5M</span>
+            <span class="dashboard-label">已处理行数</span>
+        </div>
+        <div class="dashboard-item">
+            <span class="dashboard-value" id="scheduledJobs">8</span>
+            <span class="dashboard-label">定时任务</span>
+        </div>
+        <div class="dashboard-item">
+            <span class="dashboard-value" id="systemLoad">23%</span>
+            <span class="dashboard-label">系统负载</span>
+        </div>
+    </div>
+</div>
+
+<!-- 操作模块 -->
+<div class="row mb-4">
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card operation-card h-100">
+            <div class="card-body text-center">
+                <div class="operation-icon icon-query">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h5>数据查询</h5>
+                <p class="text-muted">执行SQL查询和数据检索操作</p>
+                <button class="btn btn-primary" onclick="openQueryBuilder()">
+                    <i class="fas fa-play me-2"></i>开始查询
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card operation-card h-100">
+            <div class="card-body text-center">
+                <div class="operation-icon icon-transform">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <h5>数据转换</h5>
+                <p class="text-muted">数据清洗、格式转换和预处理</p>
+                <button class="btn btn-success" onclick="openTransformPipeline()">
+                    <i class="fas fa-cogs me-2"></i>数据管道
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card operation-card h-100">
+            <div class="card-body text-center">
+                <div class="operation-icon icon-analyze">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h5>数据分析</h5>
+                <p class="text-muted">统计分析和机器学习模型</p>
+                <button class="btn btn-danger" onclick="openAnalysisModule()">
+                    <i class="fas fa-brain me-2"></i>开始分析
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card operation-card h-100">
+            <div class="card-body text-center">
+                <div class="operation-icon icon-export">
+                    <i class="fas fa-download"></i>
+                </div>
+                <h5>数据导出</h5>
+                <p class="text-muted">导出处理结果到各种格式</p>
+                <button class="btn btn-warning" onclick="openExportModule()">
+                    <i class="fas fa-file-export me-2"></i>导出数据
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card operation-card h-100">
+            <div class="card-body text-center">
+                <div class="operation-icon icon-schedule">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h5>任务调度</h5>
+                <p class="text-muted">定时任务和批处理管理</p>
+                <button class="btn btn-secondary" onclick="openScheduler()">
+                    <i class="fas fa-calendar me-2"></i>任务调度
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card operation-card h-100">
+            <div class="card-body text-center">
+                <div class="operation-icon icon-monitor">
+                    <i class="fas fa-chart-area"></i>
+                </div>
+                <h5>系统监控</h5>
+                <p class="text-muted">性能监控和资源使用情况</p>
+                <button class="btn btn-info" onclick="openMonitoring()">
+                    <i class="fas fa-eye me-2"></i>监控面板
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 查询构建器 -->
+<div class="card" id="queryModule" style="display: none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-code me-2"></i>SQL 查询构建器</h5>
+        <button class="btn btn-outline-secondary btn-sm" onclick="closeModule('queryModule')">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="query-builder">
+                    <div class="mb-3">
+                        <label class="form-label">数据源选择</label>
+                        <select class="form-select" id="dataSource">
+                            <option value="">选择数据源</option>
+                            <option value="uploaded_csv">上传的CSV文件</option>
+                            <option value="realtime_data">实时数据流</option>
+                            <option value="historical_data">历史数据库</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">SQL 查询</label>
+                        <textarea class="query-editor" id="sqlQuery" placeholder="-- 在此输入SQL查询语句
+SELECT * FROM table_name 
+WHERE condition = 'value'
+ORDER BY column_name
+LIMIT 100;">SELECT column1, column2, COUNT(*) as count
+FROM data_table 
+WHERE date >= '2024-01-01'
+GROUP BY column1, column2
+ORDER BY count DESC
+LIMIT 50;</textarea>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" onclick="executeQuery()">
+                            <i class="fas fa-play me-2"></i>执行查询
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="formatQuery()">
+                            <i class="fas fa-magic me-2"></i>格式化
+                        </button>
+                        <button class="btn btn-outline-info" onclick="explainQuery()">
+                            <i class="fas fa-info-circle me-2"></i>执行计划
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>查询历史</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item list-group-item-action">
+                                <small>SELECT * FROM users...</small>
+                                <br><small class="text-muted">5分钟前</small>
+                            </div>
+                            <div class="list-group-item list-group-item-action">
+                                <small>SELECT COUNT(*) FROM...</small>
+                                <br><small class="text-muted">10分钟前</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 查询结果 -->
+        <div class="mt-4" id="queryResults" style="display: none;">
+            <h6>查询结果 <span class="badge bg-primary" id="resultCount">0</span> 行</h6>
+            <div class="data-preview">
+                <table class="table table-striped table-hover mb-0" id="resultTable">
+                    <!-- 动态生成结果表格 -->
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 数据转换管道 -->
+<div class="card" id="transformModule" style="display: none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-project-diagram me-2"></i>数据转换管道</h5>
+        <button class="btn btn-outline-secondary btn-sm" onclick="closeModule('transformModule')">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="card-body">
+        <!-- 管道流程图 -->
+        <div class="pipeline-flow">
+            <div class="pipeline-step active">
+                <i class="fas fa-database fa-2x mb-2 text-primary"></i>
+                <div>数据源</div>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <i class="fas fa-filter fa-2x mb-2 text-muted"></i>
+                <div>数据清洗</div>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <i class="fas fa-exchange-alt fa-2x mb-2 text-muted"></i>
+                <div>格式转换</div>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <i class="fas fa-check-circle fa-2x mb-2 text-muted"></i>
+                <div>数据验证</div>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <i class="fas fa-save fa-2x mb-2 text-muted"></i>
+                <div>输出存储</div>
+            </div>
+        </div>
+        
+        <!-- 转换步骤配置 -->
+        <div class="row">
+            <div class="col-md-6">
+                <h6>转换步骤</h6>
+                <div id="transformSteps">
+                    <div class="transformation-step">
+                        <div class="step-content">
+                            <strong>去除空值</strong>
+                            <div class="text-muted">移除数据中的空值和缺失值</div>
+                        </div>
+                        <div class="step-actions">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editTransformStep(1)">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="removeTransformStep(1)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="transformation-step">
+                        <div class="step-content">
+                            <strong>数据类型转换</strong>
+                            <div class="text-muted">将字符串转换为数值类型</div>
+                        </div>
+                        <div class="step-actions">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editTransformStep(2)">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="removeTransformStep(2)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-success btn-sm mt-3" onclick="addTransformStep()">
+                    <i class="fas fa-plus me-2"></i>添加步骤
+                </button>
+            </div>
+            
+            <div class="col-md-6">
+                <h6>预览结果</h6>
+                <div class="data-preview">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>列名</th>
+                                <th>原始值</th>
+                                <th>转换后</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>age</td>
+                                <td>"25"</td>
+                                <td>25</td>
+                            </tr>
+                            <tr>
+                                <td>price</td>
+                                <td>"$123.45"</td>
+                                <td>123.45</td>
+                            </tr>
+                            <tr>
+                                <td>date</td>
+                                <td>"2024-01-15"</td>
+                                <td>2024-01-15 00:00:00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <button class="btn btn-primary" onclick="runTransformPipeline()">
+                <i class="fas fa-play me-2"></i>运行管道
+            </button>
+            <button class="btn btn-outline-secondary" onclick="saveTransformPipeline()">
+                <i class="fas fa-save me-2"></i>保存配置
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 系统监控 -->
+<div class="card" id="monitoringModule" style="display: none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="fas fa-chart-area me-2"></i>系统监控面板</h5>
+        <button class="btn btn-outline-secondary btn-sm" onclick="closeModule('monitoringModule')">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-microchip fa-2x text-primary mb-2"></i>
+                        <h5 id="cpuUsageMonitor">45%</h5>
+                        <small class="text-muted">CPU 使用率</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-memory fa-2x text-success mb-2"></i>
+                        <h5 id="memoryUsageMonitor">62%</h5>
+                        <small class="text-muted">内存使用率</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-hdd fa-2x text-warning mb-2"></i>
+                        <h5 id="diskUsageMonitor">78%</h5>
+                        <small class="text-muted">磁盘使用率</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-network-wired fa-2x text-info mb-2"></i>
+                        <h5 id="networkUsageMonitor">125 MB/s</h5>
+                        <small class="text-muted">网络流量</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 实时日志 -->
+        <div class="row">
+            <div class="col-12">
+                <h6>系统日志</h6>
+                <div class="logs-container" id="systemLogs">
+                    <div class="log-line">
+                        <span class="log-timestamp">[2024-01-15 14:30:15]</span>
+                        <span class="log-level-info">[INFO]</span>
+                        <span>数据操作系统启动完成</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">[2024-01-15 14:30:20]</span>
+                        <span class="log-level-info">[INFO]</span>
+                        <span>已连接到数据源: uploaded_csv</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">[2024-01-15 14:30:25]</span>
+                        <span class="log-level-warn">[WARN]</span>
+                        <span>检测到高内存使用率: 85%</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-timestamp">[2024-01-15 14:30:30]</span>
+                        <span class="log-level-info">[INFO]</span>
+                        <span>查询执行完成，处理了 1,250 行数据</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentModule = null;
+let transformStepCounter = 2;
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    updateDashboard();
+    startMonitoring();
+});
+
+// 更新仪表板数据
+function updateDashboard() {
+    // 模拟实时数据更新
+    const metrics = {
+        connectedSources: Math.floor(Math.random() * 3) + 4,
+        activeQueries: Math.floor(Math.random() * 10) + 8,
+        processedRows: (Math.random() * 2 + 1.5).toFixed(1) + 'M',
+        scheduledJobs: Math.floor(Math.random() * 5) + 6,
+        systemLoad: Math.floor(Math.random() * 30) + 15 + '%'
+    };
+    
+    Object.keys(metrics).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+            element.textContent = metrics[key];
+        }
+    });
+}
+
+// 开启监控
+function startMonitoring() {
+    setInterval(() => {
+        updateDashboard();
+        updateSystemMetrics();
+        addRandomLog();
+    }, 5000);
+}
+
+// 更新系统指标
+function updateSystemMetrics() {
+    const cpuUsage = Math.floor(Math.random() * 50) + 25;
+    const memoryUsage = Math.floor(Math.random() * 40) + 40;
+    const diskUsage = Math.floor(Math.random() * 30) + 60;
+    const networkUsage = Math.floor(Math.random() * 200) + 50;
+    
+    const cpuElement = document.getElementById('cpuUsageMonitor');
+    const memoryElement = document.getElementById('memoryUsageMonitor');
+    const diskElement = document.getElementById('diskUsageMonitor');
+    const networkElement = document.getElementById('networkUsageMonitor');
+    
+    if (cpuElement) cpuElement.textContent = cpuUsage + '%';
+    if (memoryElement) memoryElement.textContent = memoryUsage + '%';
+    if (diskElement) diskElement.textContent = diskUsage + '%';
+    if (networkElement) networkElement.textContent = networkUsage + ' MB/s';
+}
+
+// 添加随机日志
+function addRandomLog() {
+    const logsContainer = document.getElementById('systemLogs');
+    if (!logsContainer) return;
+    
+    const logMessages = [
+        { level: 'info', message: '数据查询执行完成' },
+        { level: 'info', message: '缓存刷新成功' },
+        { level: 'warn', message: '检测到慢查询' },
+        { level: 'info', message: '新的数据源连接建立' },
+        { level: 'error', message: '临时连接超时' }
+    ];
+    
+    const randomMessage = logMessages[Math.floor(Math.random() * logMessages.length)];
+    const timestamp = new Date().toLocaleString();
+    
+    const logLine = document.createElement('div');
+    logLine.className = 'log-line';
+    logLine.innerHTML = `
+        <span class="log-timestamp">[${timestamp}]</span>
+        <span class="log-level-${randomMessage.level}">[${randomMessage.level.toUpperCase()}]</span>
+        <span>${randomMessage.message}</span>
+    `;
+    
+    logsContainer.appendChild(logLine);
+    logsContainer.scrollTop = logsContainer.scrollHeight;
+    
+    // 限制日志条数
+    while (logsContainer.children.length > 50) {
+        logsContainer.removeChild(logsContainer.firstChild);
+    }
+}
+
+// 打开模块
+function openModule(moduleId) {
+    closeAllModules();
+    document.getElementById(moduleId).style.display = 'block';
+    currentModule = moduleId;
+}
+
+// 关闭模块
+function closeModule(moduleId) {
+    document.getElementById(moduleId).style.display = 'none';
+    currentModule = null;
+}
+
+// 关闭所有模块
+function closeAllModules() {
+    const modules = ['queryModule', 'transformModule', 'monitoringModule'];
+    modules.forEach(moduleId => {
+        document.getElementById(moduleId).style.display = 'none';
+    });
+}
+
+// 打开查询构建器
+function openQueryBuilder() {
+    openModule('queryModule');
+}
+
+// 打开转换管道
+function openTransformPipeline() {
+    openModule('transformModule');
+}
+
+// 打开分析模块
+function openAnalysisModule() {
+    showAlert('数据分析模块开发中...', 'info');
+}
+
+// 打开导出模块
+function openExportModule() {
+    showAlert('数据导出模块开发中...', 'info');
+}
+
+// 打开任务调度器
+function openScheduler() {
+    showAlert('任务调度器开发中...', 'info');
+}
+
+// 打开监控面板
+function openMonitoring() {
+    openModule('monitoringModule');
+}
+
+// 执行查询
+function executeQuery() {
+    const query = document.getElementById('sqlQuery').value;
+    const dataSource = document.getElementById('dataSource').value;
+    
+    if (!query.trim()) {
+        showAlert('请输入SQL查询语句', 'warning');
+        return;
+    }
+    
+    if (!dataSource) {
+        showAlert('请选择数据源', 'warning');
+        return;
+    }
+    
+    // 模拟查询执行
+    showAlert('正在执行查询...', 'info');
+    
+    setTimeout(() => {
+        // 模拟查询结果
+        const mockResults = [
+            { id: 1, name: '张三', age: 25, city: '北京' },
+            { id: 2, name: '李四', age: 30, city: '上海' },
+            { id: 3, name: '王五', age: 28, city: '深圳' }
+        ];
+        
+        displayQueryResults(mockResults);
+        showAlert('查询执行成功', 'success');
+    }, 2000);
+}
+
+// 显示查询结果
+function displayQueryResults(results) {
+    const resultsDiv = document.getElementById('queryResults');
+    const resultTable = document.getElementById('resultTable');
+    const resultCount = document.getElementById('resultCount');
+    
+    if (results.length === 0) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+    
+    resultCount.textContent = results.length;
+    
+    // 生成表头
+    const headers = Object.keys(results[0]);
+    const headerRow = headers.map(header => `<th>${header}</th>`).join('');
+    
+    // 生成数据行
+    const dataRows = results.map(row => {
+        const cells = headers.map(header => `<td>${row[header]}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+    }).join('');
+    
+    resultTable.innerHTML = `
+        <thead>
+            <tr>${headerRow}</tr>
+        </thead>
+        <tbody>
+            ${dataRows}
+        </tbody>
+    `;
+    
+    resultsDiv.style.display = 'block';
+}
+
+// 格式化查询
+function formatQuery() {
+    const queryTextarea = document.getElementById('sqlQuery');
+    let query = queryTextarea.value;
+    
+    // 简单的SQL格式化
+    query = query.replace(/\bSELECT\b/gi, '\nSELECT')
+                 .replace(/\bFROM\b/gi, '\nFROM')
+                 .replace(/\bWHERE\b/gi, '\nWHERE')
+                 .replace(/\bGROUP BY\b/gi, '\nGROUP BY')
+                 .replace(/\bORDER BY\b/gi, '\nORDER BY')
+                 .replace(/\bLIMIT\b/gi, '\nLIMIT')
+                 .trim();
+    
+    queryTextarea.value = query;
+    showAlert('查询已格式化', 'success');
+}
+
+// 解释查询
+function explainQuery() {
+    showAlert('查询执行计划：使用索引扫描，预计耗时 0.05秒', 'info');
+}
+
+// 添加转换步骤
+function addTransformStep() {
+    const stepsContainer = document.getElementById('transformSteps');
+    transformStepCounter++;
+    
+    const stepDiv = document.createElement('div');
+    stepDiv.className = 'transformation-step';
+    stepDiv.innerHTML = `
+        <div class="step-content">
+            <strong>新的转换步骤</strong>
+            <div class="text-muted">点击编辑配置此步骤</div>
+        </div>
+        <div class="step-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="editTransformStep(${transformStepCounter})">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="removeTransformStep(${transformStepCounter})">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    stepsContainer.appendChild(stepDiv);
+}
+
+// 编辑转换步骤
+function editTransformStep(stepId) {
+    showAlert(`编辑转换步骤 ${stepId} 的配置...`, 'info');
+}
+
+// 移除转换步骤
+function removeTransformStep(stepId) {
+    if (confirm('确定要移除此转换步骤吗？')) {
+        // 这里应该移除对应的DOM元素
+        showAlert(`转换步骤 ${stepId} 已移除`, 'success');
+    }
+}
+
+// 运行转换管道
+function runTransformPipeline() {
+    showAlert('正在运行数据转换管道...', 'info');
+    
+    // 模拟管道执行过程
+    const steps = document.querySelectorAll('.pipeline-step');
+    let currentStep = 0;
+    
+    const executeStep = () => {
+        if (currentStep < steps.length) {
+            steps[currentStep].classList.remove('active');
+            steps[currentStep].classList.add('completed');
+            currentStep++;
+            
+            if (currentStep < steps.length) {
+                steps[currentStep].classList.add('active');
+                setTimeout(executeStep, 1000);
+            } else {
+                showAlert('数据转换管道执行完成', 'success');
+            }
+        }
+    };
+    
+    setTimeout(executeStep, 1000);
+}
+
+// 保存转换管道配置
+function saveTransformPipeline() {
+    showAlert('转换管道配置已保存', 'success');
+}
+</script>
 {% endblock %}

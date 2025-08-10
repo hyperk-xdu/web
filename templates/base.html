@@ -1,50 +1,313 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}任务平台{% endblock %}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
-  <link rel="stylesheet" href="/static/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}数据分析平台{% endblock %}</title>
+    
+    <!-- CSS Dependencies -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --light-bg: #f8f9fa;
+            --sidebar-width: 250px;
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light-bg);
+            color: #333;
+        }
+        
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* 侧边栏 */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--secondary-color);
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: var(--transition);
+            z-index: 1000;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        
+        .menu-item {
+            display: block;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+        
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: var(--primary-color);
+        }
+        
+        .menu-item.active {
+            background: rgba(52, 152, 219, 0.2);
+            color: white;
+            border-left-color: var(--primary-color);
+        }
+        
+        .menu-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+            background: var(--light-bg);
+        }
+        
+        .content-header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #eee;
+        }
+        
+        .content-header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+        }
+        
+        .content-header h1 i {
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+        
+        .content-body {
+            padding: 30px;
+        }
+        
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #eee;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        /* 按钮样式 */
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        .btn-success {
+            background: var(--success-color);
+            border-color: var(--success-color);
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+            border-color: var(--warning-color);
+        }
+        
+        .btn-danger {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        /* 表格样式 */
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            border-top: none;
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+        
+        /* 消息提示 */
+        .alert {
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .content-body {
+                padding: 20px;
+            }
+        }
+        
+        /* 自定义样式块 */
+        {% block extra_css %}{% endblock %}
+    </style>
 </head>
 <body>
-<nav class="hexo-nav">
-  <div class="nav-container">
-    <a href="/" class="brand"><i class="fas fa-rocket"></i> TaskCenter</a>
-    <div class="nav-menu">
-      <a href="/tasks" class="nav-item {% if active_page=='tasks' %}active{% endif %}"><i class="fas fa-tasks"></i> 任务面板</a>
-      <a href="/files" class="nav-item {% if active_page=='files' %}active{% endif %}"><i class="fas fa-cloud-upload-alt"></i> 文件中心</a>
+    <div class="app-layout">
+        <!-- 侧边栏 -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fas fa-chart-line"></i> 数据分析平台</h3>
+            </div>
+            <div class="sidebar-menu">
+                <a href="/" class="menu-item {% if active_page == 'tasks' %}active{% endif %}">
+                    <i class="fas fa-tasks"></i> 任务管理
+                </a>
+                <a href="/wave" class="menu-item {% if active_page == 'wave' %}active{% endif %}">
+                    <i class="fas fa-wave-square"></i> 实时波形分析
+                </a>
+                <a href="/files" class="menu-item {% if active_page == 'files' %}active{% endif %}">
+                    <i class="fas fa-folder"></i> 文件管理
+                </a>
+                <a href="/doss" class="menu-item {% if active_page == 'doss' %}active{% endif %}">
+                    <i class="fas fa-database"></i> 数据操作系统
+                </a>
+                <a href="/search" class="menu-item {% if active_page == 'search' %}active{% endif %}">
+                    <i class="fas fa-search"></i> 智能搜索
+                </a>
+                <a href="/videos" class="menu-item {% if active_page == 'videos' %}active{% endif %}">
+                    <i class="fas fa-video"></i> 视频管理
+                </a>
+                <a href="/email" class="menu-item {% if active_page == 'email' %}active{% endif %}">
+                    <i class="fas fa-envelope"></i> 邮件发送
+                </a>
+            </div>
+        </nav>
+        
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1>
+                    {% block page_icon %}{% endblock %}
+                    {% block page_title %}{% endblock %}
+                </h1>
+            </div>
+            
+            <div class="content-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
     </div>
-    <div class="nav-extra" style="display: flex; gap: 15px;">
-      <div class="nav-icon" title="实验室信息" style="position: relative;">
-        <i class="fas fa-user"></i>
-        <div class="lab-info" style="display: none; position: absolute; top: 30px; right: 0; background: white; border: 1px solid #ddd; padding: 10px; width: 200px; z-index: 9999;">
-          <strong>实验室信息：</strong>
-          <p>我们专注于开发最方便，最有效的能源分析和检测系统</p>
-          <p>负责人：刘晅润</p>
-        </div>
-      </div>
-      <a class="nav-icon" href="/email" title="发送建议">
-        <i class="fas fa-bell"></i>
-      </a>
-    </div>
-  </div>
-  
-</nav>
-<div class="hexo-container">
-  {% block content %}{% endblock %}
-</div>
-<script src="/static/js/main.js"></script>
-<script>
-  // 实验室信息悬停交互逻辑
-  document.addEventListener('DOMContentLoaded', () => {
-    const userIcon = document.querySelector('.fa-user');
-    const infoBox = document.querySelector('.lab-info');
-    if (userIcon && infoBox) {
-      userIcon.addEventListener('mouseenter', () => infoBox.style.display = 'block');
-      userIcon.addEventListener('mouseleave', () => infoBox.style.display = 'none');
-    }
-  });
-</script>
+    
+    <!-- JavaScript Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // 通用工具函数
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const container = document.querySelector('.content-body');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // 自动移除
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+        
+        function showLoading(element, text = '处理中...') {
+            if (element) {
+                element.disabled = true;
+                element.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${text}`;
+            }
+        }
+        
+        function hideLoading(element, originalText) {
+            if (element) {
+                element.disabled = false;
+                element.innerHTML = originalText;
+            }
+        }
+        
+        // 响应式侧边栏切换
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('show');
+        }
+        
+        // 页面特定脚本
+        {% block extra_js %}{% endblock %}
+    </script>
 </body>
 </html>

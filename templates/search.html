@@ -1,12 +1,844 @@
 {% extends "base.html" %}
-{% block title %}搜索页面{% endblock %}
+
+{% block title %}智能搜索 - 数据分析平台{% endblock %}
+
+{% block page_icon %}<i class="fas fa-search"></i>{% endblock %}
+{% block page_title %}智能搜索{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        padding: 50px 30px;
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    
+    .search-box {
+        max-width: 600px;
+        margin: 30px auto 0;
+        position: relative;
+    }
+    
+    .search-input {
+        border-radius: 50px;
+        border: none;
+        padding: 15px 60px 15px 25px;
+        font-size: 16px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .search-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: var(--primary-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .search-filters {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .filter-group {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .filter-tag {
+        padding: 5px 15px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+    
+    .filter-tag:hover {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    .filter-tag.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    .search-suggestions {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+    }
+    
+    .suggestion-item {
+        padding: 12px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    
+    .suggestion-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .search-results {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .result-item {
+        padding: 20px;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s ease;
+    }
+    
+    .result-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .result-item:last-child {
+        border-bottom: none;
+    }
+    
+    .result-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 8px;
+        cursor: pointer;
+    }
+    
+    .result-title:hover {
+        text-decoration: underline;
+    }
+    
+    .result-snippet {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 10px;
+    }
+    
+    .result-meta {
+        display: flex;
+        gap: 15px;
+        font-size: 14px;
+        color: #888;
+    }
+    
+    .result-type {
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .result-date {
+        color: #666;
+    }
+    
+    .result-score {
+        color: var(--success-color);
+        font-weight: 500;
+    }
+    
+    .search-stats {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .pagination-container {
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+    
+    .quick-search {
+        margin-top: 30px;
+    }
+    
+    .quick-search-item {
+        display: inline-block;
+        margin: 5px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 20px;
+        color: white;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-search-item:hover {
+        background: rgba(255,255,255,0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .search-history {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .history-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .history-item:last-child {
+        border-bottom: none;
+    }
+    
+    .history-query {
+        cursor: pointer;
+        color: var(--primary-color);
+    }
+    
+    .history-query:hover {
+        text-decoration: underline;
+    }
+    
+    .history-time {
+        font-size: 12px;
+        color: #888;
+    }
+    
+    .advanced-search {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+        display: none;
+    }
+    
+    .advanced-search.show {
+        display: block;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<section class="task-panel">
-  <h2 class="panel-title">搜索界面</h2>
-  <form method="get" action="#">
-    <input type="text" placeholder="输入关键词..." style="width: 60%; padding: 8px;">
-    <button class="hexo-btn primary" type="submit">搜索</button>
-  </form>
-  <p style="margin-top: 20px;">此处可以展示搜索结果列表、文档索引、或其他信息展示组件。</p>
-</section>
+<!-- 搜索主区域 -->
+<div class="search-hero">
+    <h2><i class="fas fa-search me-2"></i>智能数据搜索</h2>
+    <p>快速搜索和发现您的数据资源</p>
+    
+    <div class="search-box">
+        <input type="text" class="form-control search-input" id="searchInput" 
+               placeholder="输入关键词搜索数据、文件、报告..."
+               autocomplete="off">
+        <button class="search-btn" onclick="performSearch()">
+            <i class="fas fa-search"></i>
+        </button>
+        
+        <!-- 搜索建议 -->
+        <div class="search-suggestions" id="searchSuggestions">
+            <!-- 动态生成搜索建议 -->
+        </div>
+    </div>
+    
+    <!-- 快速搜索 -->
+    <div class="quick-search">
+        <span style="opacity: 0.8;">快速搜索:</span>
+        <a href="#" class="quick-search-item" onclick="quickSearch('CSV文件')">CSV文件</a>
+        <a href="#" class="quick-search-item" onclick="quickSearch('实时数据')">实时数据</a>
+        <a href="#" class="quick-search-item" onclick="quickSearch('分析报告')">分析报告</a>
+        <a href="#" class="quick-search-item" onclick="quickSearch('2024数据')">2024数据</a>
+        <a href="#" class="quick-search-item" onclick="quickSearch('销售数据')">销售数据</a>
+    </div>
+</div>
+
+<!-- 搜索历史 -->
+<div class="search-history" id="searchHistory">
+    <h6><i class="fas fa-history me-2"></i>搜索历史</h6>
+    <div id="historyList">
+        <div class="history-item">
+            <span class="history-query" onclick="quickSearch('用户数据分析')">用户数据分析</span>
+            <span class="history-time">2小时前</span>
+        </div>
+        <div class="history-item">
+            <span class="history-query" onclick="quickSearch('销售报表')">销售报表</span>
+            <span class="history-time">昨天</span>
+        </div>
+        <div class="history-item">
+            <span class="history-query" onclick="quickSearch('CSV导入')">CSV导入</span>
+            <span class="history-time">3天前</span>
+        </div>
+    </div>
+</div>
+
+<!-- 搜索过滤器 -->
+<div class="search-filters">
+    <div class="row">
+        <div class="col-md-3">
+            <label class="form-label">内容类型</label>
+            <div class="filter-group">
+                <div class="filter-tag active" data-filter="type" data-value="all">全部</div>
+                <div class="filter-tag" data-filter="type" data-value="file">文件</div>
+                <div class="filter-tag" data-filter="type" data-value="data">数据</div>
+                <div class="filter-tag" data-filter="type" data-value="report">报告</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <label class="form-label">文件格式</label>
+            <div class="filter-group">
+                <div class="filter-tag active" data-filter="format" data-value="all">全部</div>
+                <div class="filter-tag" data-filter="format" data-value="csv">CSV</div>
+                <div class="filter-tag" data-filter="format" data-value="excel">Excel</div>
+                <div class="filter-tag" data-filter="format" data-value="json">JSON</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <label class="form-label">时间范围</label>
+            <div class="filter-group">
+                <div class="filter-tag active" data-filter="time" data-value="all">全部</div>
+                <div class="filter-tag" data-filter="time" data-value="today">今天</div>
+                <div class="filter-tag" data-filter="time" data-value="week">本周</div>
+                <div class="filter-tag" data-filter="time" data-value="month">本月</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="d-flex gap-2 align-items-end h-100">
+                <button class="btn btn-outline-primary btn-sm" onclick="toggleAdvancedSearch()">
+                    <i class="fas fa-cog me-1"></i>高级搜索
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="resetFilters()">
+                    <i class="fas fa-undo me-1"></i>重置
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 高级搜索 -->
+<div class="advanced-search" id="advancedSearch">
+    <h6><i class="fas fa-search-plus me-2"></i>高级搜索选项</h6>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label class="form-label">包含所有词语</label>
+                <input type="text" class="form-control" id="includeAll" placeholder="必须包含的关键词">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">包含任一词语</label>
+                <input type="text" class="form-control" id="includeAny" placeholder="包含其中任一关键词">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label class="form-label">排除词语</label>
+                <input type="text" class="form-control" id="exclude" placeholder="不包含的关键词">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">精确短语</label>
+                <input type="text" class="form-control" id="exactPhrase" placeholder="完整匹配的短语">
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="mb-3">
+                <label class="form-label">文件大小</label>
+                <select class="form-select" id="fileSize">
+                    <option value="">任意大小</option>
+                    <option value="small">小于 1MB</option>
+                    <option value="medium">1MB - 10MB</option>
+                    <option value="large">大于 10MB</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="mb-3">
+                <label class="form-label">创建时间</label>
+                <input type="date" class="form-control" id="createDate">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="mb-3">
+                <label class="form-label">排序方式</label>
+                <select class="form-select" id="sortBy">
+                    <option value="relevance">相关性</option>
+                    <option value="date">时间</option>
+                    <option value="size">大小</option>
+                    <option value="name">名称</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 搜索结果 -->
+<div class="search-results" id="searchResults" style="display: none;">
+    <div class="search-stats" id="searchStats">
+        找到 0 个结果 (用时 0.00 秒)
+    </div>
+    
+    <div id="resultsList">
+        <!-- 动态生成搜索结果 -->
+    </div>
+    
+    <!-- 分页 -->
+    <div class="pagination-container">
+        <nav>
+            <ul class="pagination" id="searchPagination">
+                <!-- 动态生成分页 -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- 无结果页面 -->
+<div class="no-results" id="noResults" style="display: none;">
+    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+    <h5>未找到相关结果</h5>
+    <p class="text-muted">请尝试使用不同的关键词或调整搜索条件</p>
+    <div class="mt-4">
+        <h6>搜索建议：</h6>
+        <ul class="list-unstyled">
+            <li>• 检查关键词拼写</li>
+            <li>• 尝试使用更通用的关键词</li>
+            <li>• 减少搜索条件限制</li>
+            <li>• 使用同义词或相关词汇</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let searchFilters = {
+    type: 'all',
+    format: 'all',
+    time: 'all'
+};
+
+let searchHistory = [
+    { query: '用户数据分析', time: '2小时前' },
+    { query: '销售报表', time: '昨天' },
+    { query: 'CSV导入', time: '3天前' }
+];
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    setupSearchInput();
+    setupFilters();
+    loadSearchHistory();
+});
+
+// 设置搜索输入框
+function setupSearchInput() {
+    const searchInput = document.getElementById('searchInput');
+    
+    // 搜索建议
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length >= 2) {
+            showSearchSuggestions(query);
+        } else {
+            hideSearchSuggestions();
+        }
+    });
+    
+    // 回车搜索
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+    
+    // 点击外部隐藏建议
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-box')) {
+            hideSearchSuggestions();
+        }
+    });
+}
+
+// 设置过滤器
+function setupFilters() {
+    const filterTags = document.querySelectorAll('.filter-tag');
+    
+    filterTags.forEach(tag => {
+        tag.addEventListener('click', function() {
+            const filterType = this.dataset.filter;
+            const filterValue = this.dataset.value;
+            
+            // 移除同类过滤器的活跃状态
+            document.querySelectorAll(`[data-filter="${filterType}"]`).forEach(t => {
+                t.classList.remove('active');
+            });
+            
+            // 添加当前过滤器的活跃状态
+            this.classList.add('active');
+            
+            // 更新过滤器状态
+            searchFilters[filterType] = filterValue;
+            
+            // 如果已有搜索结果，重新搜索
+            if (document.getElementById('searchResults').style.display !== 'none') {
+                performSearch();
+            }
+        });
+    });
+}
+
+// 显示搜索建议
+function showSearchSuggestions(query) {
+    const suggestions = [
+        '数据分析报告',
+        '销售数据统计',
+        'CSV文件导入',
+        '用户行为分析',
+        '实时监控数据',
+        '财务报表模板',
+        '机器学习模型',
+        '数据可视化图表'
+    ];
+    
+    const filteredSuggestions = suggestions.filter(s => 
+        s.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    const suggestionsDiv = document.getElementById('searchSuggestions');
+    
+    if (filteredSuggestions.length > 0) {
+        suggestionsDiv.innerHTML = filteredSuggestions.slice(0, 5).map(suggestion => 
+            `<div class="suggestion-item" onclick="selectSuggestion('${suggestion}')">${suggestion}</div>`
+        ).join('');
+        suggestionsDiv.style.display = 'block';
+    } else {
+        hideSearchSuggestions();
+    }
+}
+
+// 隐藏搜索建议
+function hideSearchSuggestions() {
+    document.getElementById('searchSuggestions').style.display = 'none';
+}
+
+// 选择搜索建议
+function selectSuggestion(suggestion) {
+    document.getElementById('searchInput').value = suggestion;
+    hideSearchSuggestions();
+    performSearch();
+}
+
+// 执行搜索
+function performSearch() {
+    const query = document.getElementById('searchInput').value.trim();
+    
+    if (!query) {
+        showAlert('请输入搜索关键词', 'warning');
+        return;
+    }
+    
+    // 添加到搜索历史
+    addToSearchHistory(query);
+    
+    // 显示加载状态
+    showSearchLoading();
+    
+    // 模拟搜索延迟
+    setTimeout(() => {
+        const results = mockSearchResults(query);
+        displaySearchResults(results, query);
+    }, 800);
+}
+
+// 模拟搜索结果
+function mockSearchResults(query) {
+    const allResults = [
+        {
+            title: '2024年销售数据分析报告',
+            snippet: '包含2024年全年销售业绩数据，分析了不同产品线的销售趋势和客户行为模式...',
+            type: '报告',
+            format: 'PDF',
+            date: '2024-01-15',
+            score: '95%',
+            url: '/reports/sales_2024.pdf'
+        },
+        {
+            title: 'customer_data_2024.csv',
+            snippet: '客户基础信息数据文件，包含客户ID、姓名、联系方式、购买历史等关键信息...',
+            type: '文件',
+            format: 'CSV',
+            date: '2024-01-10',
+            score: '88%',
+            url: '/files/customer_data_2024.csv'
+        },
+        {
+            title: '实时用户行为监控数据',
+            snippet: '网站用户实时访问数据，包括页面浏览量、停留时间、转化率等关键指标...',
+            type: '数据',
+            format: 'JSON',
+            date: '2024-01-14',
+            score: '92%',
+            url: '/data/user_behavior_realtime'
+        },
+        {
+            title: '财务报表模板集合',
+            snippet: '包含资产负债表、损益表、现金流量表等常用财务报表的Excel模板...',
+            type: '文件',
+            format: 'Excel',
+            date: '2024-01-12',
+            score: '85%',
+            url: '/templates/financial_reports.xlsx'
+        },
+        {
+            title: '机器学习模型训练数据',
+            snippet: '用于训练预测模型的历史数据集，已经过清洗和特征工程处理...',
+            type: '数据',
+            format: 'CSV',
+            date: '2024-01-08',
+            score: '90%',
+            url: '/ml/training_dataset.csv'
+        }
+    ];
+    
+    // 基于查询词和过滤器筛选结果
+    let filteredResults = allResults.filter(result => {
+        const matchesQuery = result.title.toLowerCase().includes(query.toLowerCase()) ||
+                           result.snippet.toLowerCase().includes(query.toLowerCase());
+        
+        const matchesType = searchFilters.type === 'all' || 
+                          (searchFilters.type === 'file' && result.type === '文件') ||
+                          (searchFilters.type === 'data' && result.type === '数据') ||
+                          (searchFilters.type === 'report' && result.type === '报告');
+        
+        const matchesFormat = searchFilters.format === 'all' ||
+                            result.format.toLowerCase().includes(searchFilters.format.toLowerCase());
+        
+        return matchesQuery && matchesType && matchesFormat;
+    });
+    
+    return filteredResults;
+}
+
+// 显示搜索结果
+function displaySearchResults(results, query) {
+    const resultsDiv = document.getElementById('searchResults');
+    const noResultsDiv = document.getElementById('noResults');
+    const statsDiv = document.getElementById('searchStats');
+    const resultsList = document.getElementById('resultsList');
+    
+    if (results.length === 0) {
+        resultsDiv.style.display = 'none';
+        noResultsDiv.style.display = 'block';
+        return;
+    }
+    
+    // 更新统计信息
+    const searchTime = (Math.random() * 0.5 + 0.1).toFixed(2);
+    statsDiv.textContent = `找到 ${results.length} 个结果 (用时 ${searchTime} 秒)`;
+    
+    // 生成结果列表
+    resultsList.innerHTML = results.map(result => `
+        <div class="result-item">
+            <div class="result-title" onclick="openResult('${result.url}')">${result.title}</div>
+            <div class="result-snippet">${result.snippet}</div>
+            <div class="result-meta">
+                <span class="result-type">${result.type}</span>
+                <span class="result-date">${result.date}</span>
+                <span>格式: ${result.format}</span>
+                <span class="result-score">相关性: ${result.score}</span>
+            </div>
+        </div>
+    `).join('');
+    
+    // 显示结果
+    noResultsDiv.style.display = 'none';
+    resultsDiv.style.display = 'block';
+    
+    // 生成分页（模拟）
+    generatePagination(results.length);
+}
+
+// 显示搜索加载状态
+function showSearchLoading() {
+    const resultsDiv = document.getElementById('searchResults');
+    const resultsList = document.getElementById('resultsList');
+    
+    resultsList.innerHTML = `
+        <div class="text-center py-5">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+            <p>正在搜索中...</p>
+        </div>
+    `;
+    
+    resultsDiv.style.display = 'block';
+    document.getElementById('noResults').style.display = 'none';
+}
+
+// 生成分页
+function generatePagination(totalResults) {
+    const pagination = document.getElementById('searchPagination');
+    const totalPages = Math.ceil(totalResults / 10);
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = `
+        <li class="page-item">
+            <a class="page-link" href="#" onclick="changePage(1)">首页</a>
+        </li>
+    `;
+    
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        paginationHTML += `
+            <li class="page-item ${i === 1 ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>
+        `;
+    }
+    
+    if (totalPages > 1) {
+        paginationHTML += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="changePage(${totalPages})">末页</a>
+            </li>
+        `;
+    }
+    
+    pagination.innerHTML = paginationHTML;
+}
+
+// 切换页面
+function changePage(page) {
+    showAlert(`切换到第 ${page} 页`, 'info');
+    // 这里应该重新加载对应页面的结果
+}
+
+// 快速搜索
+function quickSearch(query) {
+    document.getElementById('searchInput').value = query;
+    performSearch();
+}
+
+// 添加到搜索历史
+function addToSearchHistory(query) {
+    // 检查是否已存在
+    const exists = searchHistory.some(item => item.query === query);
+    if (exists) return;
+    
+    // 添加到历史记录开头
+    searchHistory.unshift({
+        query: query,
+        time: '刚刚'
+    });
+    
+    // 限制历史记录数量
+    if (searchHistory.length > 10) {
+        searchHistory.pop();
+    }
+    
+    // 更新显示
+    loadSearchHistory();
+}
+
+// 加载搜索历史
+function loadSearchHistory() {
+    const historyList = document.getElementById('historyList');
+    
+    historyList.innerHTML = searchHistory.map(item => `
+        <div class="history-item">
+            <span class="history-query" onclick="quickSearch('${item.query}')">${item.query}</span>
+            <span class="history-time">${item.time}</span>
+        </div>
+    `).join('');
+}
+
+// 切换高级搜索
+function toggleAdvancedSearch() {
+    const advancedSearch = document.getElementById('advancedSearch');
+    advancedSearch.classList.toggle('show');
+}
+
+// 重置过滤器
+function resetFilters() {
+    searchFilters = {
+        type: 'all',
+        format: 'all',
+        time: 'all'
+    };
+    
+    // 重置所有过滤器标签
+    document.querySelectorAll('.filter-tag').forEach(tag => {
+        tag.classList.remove('active');
+        if (tag.dataset.value === 'all') {
+            tag.classList.add('active');
+        }
+    });
+    
+    // 清空高级搜索表单
+    document.getElementById('includeAll').value = '';
+    document.getElementById('includeAny').value = '';
+    document.getElementById('exclude').value = '';
+    document.getElementById('exactPhrase').value = '';
+    document.getElementById('fileSize').value = '';
+    document.getElementById('createDate').value = '';
+    document.getElementById('sortBy').value = 'relevance';
+    
+    showAlert('搜索条件已重置', 'success');
+}
+
+// 打开搜索结果
+function openResult(url) {
+    showAlert(`正在打开: ${url}`, 'info');
+    // 这里应该根据URL类型进行相应的处理
+}
+</script>
 {% endblock %}
