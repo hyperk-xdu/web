@@ -128,11 +128,11 @@ class FixedPhaseScrollingWaveformGenerator:
             
             # 最新的RMS值，用于计算峰值
             'latest_rms': {
-                'voltage': 220.0,
+                'voltage': 0.01,
                 'current': 10.0,
-                'voltage_a': 220.0,
-                'voltage_b': 220.0,
-                'voltage_c': 220.0,
+                'voltage_a': 0.01,
+                'voltage_b': 0.01,
+                'voltage_c': 0.01,
                 'current_a': 10.0,
                 'current_b': 10.0,
                 'current_c': 10.0,
@@ -1399,9 +1399,9 @@ class OptimizedWaveAnalyzer:
                 if power_type == PowerType.DC:
                     return self.waveform_generator.generate_dc_waveform(12.0, 1.0, max_points)
                 elif power_type == PowerType.THREE_PHASE:
-                    return self.waveform_generator.generate_three_phase_waveform(220, 220, 220, 10, 10, 10, max_points)
+                    return self.waveform_generator.generate_three_phase_waveform(0.01, 0.01, 0.01, 10, 10, 10, max_points)
                 else:
-                    return self.waveform_generator.generate_single_phase_waveform(220, 10, max_points)
+                    return self.waveform_generator.generate_single_phase_waveform(0.01, 10, max_points)
             
             # 获取最新的数据点用于生成波形
             latest_data = df.iloc[-1] if len(df) > 0 else df.iloc[0]
@@ -1414,15 +1414,15 @@ class OptimizedWaveAnalyzer:
                 
             elif power_type == PowerType.SINGLE_PHASE:
                 # 单相模式：使用RMS值生成正弦波
-                voltage_rms = float(latest_data.get('voltage', 220.0))
+                voltage_rms = float(latest_data.get('voltage', 0.01))
                 current_rms = float(latest_data.get('current', 10.0))
                 return self.waveform_generator.generate_single_phase_waveform(voltage_rms, current_rms, max_points)
                 
             elif power_type == PowerType.THREE_PHASE:
                 # 三相模式：使用三相RMS值生成三相正弦波
-                voltage_a_rms = float(latest_data.get('voltage_a', 220.0))
-                voltage_b_rms = float(latest_data.get('voltage_b', 220.0))
-                voltage_c_rms = float(latest_data.get('voltage_c', 220.0))
+                voltage_a_rms = float(latest_data.get('voltage_a', 0.01))
+                voltage_b_rms = float(latest_data.get('voltage_b', 0.01))
+                voltage_c_rms = float(latest_data.get('voltage_c', 0.01))
                 current_a_rms = float(latest_data.get('current_a', 10.0))
                 current_b_rms = float(latest_data.get('current_b', 10.0))
                 current_c_rms = float(latest_data.get('current_c', 10.0))
@@ -2024,7 +2024,7 @@ async def demo_phase_calculation():
             in_cycle_pos = pos % points_per_cycle
             
             # 计算完整的波形值
-            amplitude = 220 * np.sqrt(2)  # 220V RMS的峰值
+            amplitude = 0.01 * np.sqrt(2)  # 0.01V RMS的峰值
             sine_value = amplitude * np.sin(phase_rad)
             
             phase_demo.append({
@@ -2048,7 +2048,7 @@ async def demo_phase_calculation():
             }
             
             # 计算三相电压值
-            voltage_peak = 220 * np.sqrt(2)
+            voltage_peak = 0.01 * np.sqrt(2)
             voltages = {
                 'A': voltage_peak * np.sin(phases['A']),
                 'B': voltage_peak * np.sin(phases['B']),

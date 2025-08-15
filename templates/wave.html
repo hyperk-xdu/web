@@ -989,10 +989,28 @@
                 <label class="form-label">
                   更新频率: <span id="updateRateValue">10</span> 点/次
                 </label>
-                <input type="range" class="form-range" id="updateRateSlider" 
+                <input type="range" class="form-range" id="updateRateSlider"
                        min="1" max="50" value="10" step="1">
                 <small class="form-text" style="color: rgba(255,255,255,0.7); font-size: 11px;">
                   每次更新添加的新数据点数
+                </small>
+              </div>
+
+              <div class="speed-control">
+                <label class="form-label">
+                  背景颜色
+                </label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <input type="color" class="form-control form-control-color"
+                         id="oscilloscopeBgColor" value="#001122"
+                         style="width: 50px; height: 35px; border: 2px solid rgba(255,255,255,0.3);">
+                  <button type="button" class="btn btn-sm" id="resetBgColorBtn"
+                          style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); font-size: 11px;">
+                    重置
+                  </button>
+                </div>
+                <small class="form-text" style="color: rgba(255,255,255,0.7); font-size: 11px;">
+                  自定义示波器背景颜色
                 </small>
               </div>
             </div>
@@ -1070,10 +1088,10 @@
         
         <div class="param-group">
           <div class="section-title">显示参数</div>
-          <div class="mb-3">
+          <div class="mb-3" id="displayPointsGroup">
             <label class="form-label">显示数据点数: <span id="maxPointsValue">1000</span></label>
             <input type="range" class="form-range" name="max_points" min="200" max="5000" value="1000" id="maxPointsSlider">
-            <small class="form-text text-muted">控制波形显示的精度</small>
+            <small class="form-text text-muted" id="displayPointsHelp">控制波形显示的精度</small>
           </div>
           
           <div class="mb-3" id="windowSizeGroup" style="display: none;">
@@ -1263,11 +1281,11 @@
         current: { default: 1.0 }
       },
       single_phase: {
-        voltage: { default: 220 },
+        voltage: { default: 0.01 },
         current: { default: 10 }
       },
       three_phase: {
-        voltage: { default: 220 },
+        voltage: { default: 0.01 },
         current: { default: 10 }
       }
     };
@@ -1430,27 +1448,57 @@
     function enableOscilloscopeMode() {
       const chartContainer = document.getElementById('chartContainer');
       chartContainer.classList.add('oscilloscope-mode');
-      
+
       // 更新图表样式为示波器风格
       updateChartForOscilloscope(true);
-      
+
+      // 同步显示参数
+      syncDisplayPointsWithBuffer(bufferSize);
+
       // 初始化示波器数据结构
       initializeOscilloscopeDataStructure();
+
+      // 立即开始示波器显示（使用模拟数据）
+      startOscilloscopeDemo();
     }
     
     // 禁用示波器模式
     function disableOscilloscopeMode() {
       const chartContainer = document.getElementById('chartContainer');
       chartContainer.classList.remove('oscilloscope-mode');
-      
+
       // 恢复普通图表样式
       updateChartForOscilloscope(false);
-      
+
+      // 恢复显示参数说明
+      const displayPointsHelp = document.getElementById('displayPointsHelp');
+      displayPointsHelp.textContent = '控制波形显示的精度';
+
       // 停止示波器更新
       if (oscilloscopeInterval) {
         clearInterval(oscilloscopeInterval);
         oscilloscopeInterval = null;
       }
+    }
+
+    // 开始示波器演示模式（使用模拟数据）
+    function startOscilloscopeDemo() {
+      // 如果已经在监控中，不启动演示模式
+      if (isMonitoring) {
+        return;
+      }
+
+      // 启动示波器更新定时器
+      if (oscilloscopeInterval) {
+        clearInterval(oscilloscopeInterval);
+      }
+
+      oscilloscopeInterval = setInterval(() => {
+        updateOscilloscopeData();
+        updateOscilloscopeDisplay();
+      }, scrollSpeed);
+
+      console.log('Oscilloscope demo mode started');
     }
     
     // 初始化示波器数据结构
@@ -1694,7 +1742,13 @@
       const updateRateSlider = document.getElementById('updateRateSlider');
       
       maxPointsSlider.addEventListener('input', function() {
-        document.getElementById('maxPointsValue').textContent = this.value;
+        const newValue = parseInt(this.value);
+        document.getElementById('maxPointsValue').textContent = newValue;
+
+        // 如果示波器模式开启，同步更新缓冲区大小
+        if (oscilloscopeMode) {
+          syncBufferWithDisplayPoints(newValue);
+        }
       });
       
       windowSizeSlider.addEventListener('input', function() {
@@ -1712,23 +1766,40 @@
         document.getElementById('scrollSpeedValue').textContent = scrollSpeed;
         updateSpeedText();
         updateOscilloscopeInfo();
-        
+
         // 重新启动示波器更新
         if (oscilloscopeMode && isMonitoring) {
           restartOscilloscopeUpdate();
         }
+      });
+
+      // 示波器背景颜色控制
+      const oscilloscopeBgColor = document.getElementById('oscilloscopeBgColor');
+      const resetBgColorBtn = document.getElementById('resetBgColorBtn');
+
+      oscilloscopeBgColor.addEventListener('input', function() {
+        updateOscilloscopeBackgroundColor(this.value);
+      });
+
+      resetBgColorBtn.addEventListener('click', function() {
+        const defaultColor = '#001122';
+        oscilloscopeBgColor.value = defaultColor;
+        updateOscilloscopeBackgroundColor(defaultColor);
       });
       
       bufferSizeSlider.addEventListener('input', function() {
         const newBufferSize = parseInt(this.value);
         document.getElementById('bufferSizeValue').textContent = newBufferSize;
         updateOscilloscopeInfo();
-        
+
+        // 同步更新显示数据点数
+        syncDisplayPointsWithBuffer(newBufferSize);
+
         // 调整缓冲区大小
         if (oscilloscopeMode) {
           resizeOscilloscopeBuffer(newBufferSize);
         }
-        
+
         bufferSize = newBufferSize;
       });
       
@@ -1779,9 +1850,69 @@
     function updateOscilloscopeInfo() {
       document.getElementById('currentSpeed').textContent = scrollSpeed + 'ms';
       document.getElementById('currentBuffer').textContent = bufferSize;
-      document.getElementById('currentMode').textContent = 
-        currentWorkMode === 'dc' ? '直流' : 
+      document.getElementById('currentMode').textContent =
+        currentWorkMode === 'dc' ? '直流' :
         currentWorkMode === 'three_phase' ? '三相' : '单相';
+    }
+
+    // 更新示波器背景颜色
+    function updateOscilloscopeBackgroundColor(color) {
+      // 更新CSS变量
+      document.documentElement.style.setProperty('--oscilloscope-bg', color);
+
+      // 计算网格颜色（比背景颜色稍亮）
+      const gridColor = lightenColor(color, 0.3);
+      document.documentElement.style.setProperty('--oscilloscope-grid', gridColor);
+
+      console.log('Oscilloscope background color updated to:', color);
+    }
+
+    // 颜色亮度调整函数
+    function lightenColor(color, factor) {
+      // 将十六进制颜色转换为RGB
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+
+      // 增加亮度
+      const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
+      const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
+      const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
+
+      // 转换回十六进制
+      return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+    }
+
+    // 同步显示数据点数与缓冲区大小
+    function syncDisplayPointsWithBuffer(bufferSize) {
+      const maxPointsSlider = document.getElementById('maxPointsSlider');
+      const maxPointsValue = document.getElementById('maxPointsValue');
+      const displayPointsHelp = document.getElementById('displayPointsHelp');
+
+      if (oscilloscopeMode) {
+        maxPointsSlider.value = bufferSize;
+        maxPointsValue.textContent = bufferSize;
+        displayPointsHelp.textContent = '示波器模式：与缓冲区大小同步';
+      } else {
+        displayPointsHelp.textContent = '控制波形显示的精度';
+      }
+    }
+
+    // 同步缓冲区大小与显示数据点数
+    function syncBufferWithDisplayPoints(displayPoints) {
+      const bufferSizeSlider = document.getElementById('bufferSizeSlider');
+      const bufferSizeValue = document.getElementById('bufferSizeValue');
+
+      if (oscilloscopeMode) {
+        bufferSizeSlider.value = displayPoints;
+        bufferSizeValue.textContent = displayPoints;
+        bufferSize = displayPoints;
+
+        // 调整缓冲区大小
+        resizeOscilloscopeBuffer(displayPoints);
+        updateOscilloscopeInfo();
+      }
     }
     
     // 更新图表线条粗细
@@ -1944,8 +2075,8 @@
       if (oscilloscopeInterval) {
         clearInterval(oscilloscopeInterval);
       }
-      
-      if (oscilloscopeMode && isMonitoring) {
+
+      if (oscilloscopeMode) {
         oscilloscopeInterval = setInterval(() => {
           updateOscilloscopeData();
           updateOscilloscopeDisplay();
@@ -2487,14 +2618,21 @@
           type: 'stop_monitoring'
         }));
       }
-      
+
       // 停止示波器更新
       if (oscilloscopeInterval) {
         clearInterval(oscilloscopeInterval);
         oscilloscopeInterval = null;
       }
-      
+
       updateMonitoringStatus(false);
+
+      // 如果示波器模式仍然开启，切换回演示模式
+      if (oscilloscopeMode) {
+        setTimeout(() => {
+          startOscilloscopeDemo();
+        }, 100);
+      }
     }
     
     // 执行深度分析
