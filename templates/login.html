@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电力波形分析系统 - 用户登录</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #4facfe;
+            --dark-color: #2c3e50;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            min-height: 550px;
+            display: flex;
+        }
+
+        .login-left {
+            flex: 1;
+            background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+            color: white;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-left::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            animation: drift 20s infinite linear;
+        }
+
+        @keyframes drift {
+            0% { transform: translateX(0) translateY(0); }
+            100% { transform: translateX(-50px) translateY(-50px); }
+        }
+
+        .login-left-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .system-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .system-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+
+        .feature-item i {
+            font-size: 1.2rem;
+            margin-right: 1rem;
+            color: var(--accent-color);
+        }
+
+        .login-right {
+            flex: 1;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .login-form-title {
+            text-align: center;
+            color: var(--dark-color);
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+        }
+
+        .form-floating {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-control {
+            border: 2px solid #e3e9ef;
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            background: white;
+        }
+
+        .form-label {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .login-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn .btn-text {
+            position: relative;
+            z-index: 2;
+        }
+
+        .login-btn .btn-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .login-btn.loading .btn-text {
+            opacity: 0;
+        }
+
+        .login-btn.loading .btn-loading {
+            opacity: 1;
+        }
+
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .forgot-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-link:hover {
+            color: var(--secondary-color);
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+            animation: slideIn 0.3s ease;
+        }
+
+        .status-message.success {
+            background: #d1f7c4;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .demo-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            color: var(--dark-color);
+        }
+
+        .demo-info h6 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .login-container {
+                flex-direction: column;
+                max-width: 400px;
+                margin: 1rem;
+            }
+
+            .login-left {
+                padding: 40px 30px;
+            }
+
+            .login-right {
+                padding: 40px 30px;
+            }
+
+            .system-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-left">
+            <div class="login-left-content">
+                <h1 class="system-title">
+                    <i class="fas fa-bolt me-2"></i>
+                    电力波形分析系统
+                </h1>
+                <p class="system-subtitle">
+                    专业的电力系统实时监控与波形分析平台，支持直流、单相、三相电力系统的综合分析
+                </p>
+                <ul class="feature-list">
+                    <li class="feature-item">
+                        <i class="fas fa-chart-line"></i>
+                        <span>实时波形监控与示波器模式</span>
+                    </li>
+                    <li class="feature-item">
+                        <i class="fas fa-cogs"></i>
+                        <span>多种电力系统类型支持</span>
+                    </li>
+                    <li class="feature-item">
+                        <i class="fas fa-analytics"></i>
+                        <span>FFT频谱分析与数据挖掘</span>
+                    </li>
+                    <li class="feature-item">
+                        <i class="fas fa-broadcast-tower"></i>
+                        <span>多客户端实时数据采集</span>
+                    </li>
+                    <li class="feature-item">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>安全可靠的数据传输</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="login-right">
+            <h2 class="login-form-title">
+                <i class="fas fa-user-circle me-2"></i>
+                用户登录
+            </h2>
+
+            <div id="messageArea"></div>
+
+            <form id="loginForm">
+                <div class="form-floating">
+                    <input type="text" class="form-control" id="username" placeholder="用户名" required>
+                    <label for="username">
+                        <i class="fas fa-user me-2"></i>用户名
+                    </label>
+                </div>
+
+                <div class="form-floating">
+                    <input type="password" class="form-control" id="password" placeholder="密码" required>
+                    <label for="password">
+                        <i class="fas fa-lock me-2"></i>密码
+                    </label>
+                </div>
+
+                <div class="remember-forgot">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe">
+                        <label class="form-check-label" for="rememberMe">
+                            记住我
+                        </label>
+                    </div>
+                    <a href="#" class="forgot-link">忘记密码？</a>
+                </div>
+
+                <button type="submit" class="btn login-btn w-100" id="loginBtn">
+                    <span class="btn-text">
+                        <i class="fas fa-sign-in-alt me-2"></i>登录系统
+                    </span>
+                    <div class="btn-loading">
+                        <div class="spinner-border spinner-border-sm text-light" role="status">
+                            <span class="visually-hidden">登录中...</span>
+                        </div>
+                    </div>
+                </button>
+            </form>
+
+            <div class="demo-info">
+                <h6><i class="fas fa-info-circle me-1"></i>演示账号</h6>
+                <p class="mb-1"><strong>用户名:</strong> admin</p>
+                <p class="mb-0"><strong>密码:</strong> power2024</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 用户登录处理
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loginBtn = document.getElementById('loginBtn');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const rememberMe = document.getElementById('rememberMe').checked;
+
+            if (!username || !password) {
+                showMessage('请输入用户名和密码', 'error');
+                return;
+            }
+
+            // 显示加载状态
+            loginBtn.classList.add('loading');
+            loginBtn.disabled = true;
+
+            try {
+                // 模拟登录验证（实际项目中应该调用后端API）
+                await simulateLogin(username, password);
+                
+                showMessage('登录成功，正在跳转...', 'success');
+                
+                // 保存登录状态
+                if (rememberMe) {
+                    localStorage.setItem('userLogin', JSON.stringify({
+                        username: username,
+                        loginTime: new Date().toISOString(),
+                        rememberMe: true
+                    }));
+                } else {
+                    sessionStorage.setItem('userLogin', JSON.stringify({
+                        username: username,
+                        loginTime: new Date().toISOString(),
+                        rememberMe: false
+                    }));
+                }
+
+                // 跳转到客户端选择页面
+                setTimeout(() => {
+                    window.location.href = '/client-selection';
+                }, 1500);
+
+            } catch (error) {
+                showMessage(error.message || '登录失败，请检查用户名和密码', 'error');
+            } finally {
+                loginBtn.classList.remove('loading');
+                loginBtn.disabled = false;
+            }
+        });
+
+        // 模拟登录验证
+        async function simulateLogin(username, password) {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    // 预设的用户账号
+                    const validUsers = {
+                        'admin': 'power2024',
+                        'engineer': 'electric123',
+                        'operator': 'monitor456',
+                        'demo': 'demo'
+                    };
+
+                    if (validUsers[username] && validUsers[username] === password) {
+                        resolve({ username, role: getRoleByUsername(username) });
+                    } else {
+                        reject(new Error('用户名或密码错误'));
+                    }
+                }, 1000); // 模拟网络延迟
+            });
+        }
+
+        // 根据用户名获取角色
+        function getRoleByUsername(username) {
+            const roles = {
+                'admin': '系统管理员',
+                'engineer': '电力工程师',
+                'operator': '设备操作员',
+                'demo': '演示用户'
+            };
+            return roles[username] || '用户';
+        }
+
+        // 显示消息
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('messageArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `status-message ${type}`;
+            messageDiv.innerHTML = `
+                <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 'check-circle'} me-2"></i>
+                ${message}
+            `;
+            
+            messageArea.innerHTML = '';
+            messageArea.appendChild(messageDiv);
+            
+            // 自动消失
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        // 检查是否已登录
+        function checkExistingLogin() {
+            const savedLogin = localStorage.getItem('userLogin') || sessionStorage.getItem('userLogin');
+            if (savedLogin) {
+                const loginData = JSON.parse(savedLogin);
+                // 检查登录是否在24小时内
+                const loginTime = new Date(loginData.loginTime);
+                const now = new Date();
+                const timeDiff = now - loginTime;
+                
+                if (timeDiff < 24 * 60 * 60 * 1000) { // 24小时
+                    window.location.href = '/client-selection';
+                }
+            }
+        }
+
+        // 键盘事件
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const loginBtn = document.getElementById('loginBtn');
+                if (!loginBtn.disabled) {
+                    loginBtn.click();
+                }
+            }
+        });
+
+        // 页面加载时检查登录状态
+        document.addEventListener('DOMContentLoaded', function() {
+            checkExistingLogin();
+            
+            // 焦点到用户名输入框
+            document.getElementById('username').focus();
+        });
+    </script>
+</body>
+</html>

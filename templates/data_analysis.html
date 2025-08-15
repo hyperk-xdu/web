@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电力波形分析系统 - 数据综合分析</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #4facfe;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-color: #2c3e50;
+            --light-bg: #f8f9fa;
+            --sidebar-width: 60px;
+            --param-width: 350px;
+            --transition: all 0.3s ease;
+            
+            --dc-color: #9b59b6;
+            --single-phase-color: #3498db;
+            --phase-a-color: #e74c3c;
+            --phase-b-color: #f39c12;
+            --phase-c-color: #3498db;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--dark-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            position: relative;
+            z-index: 100;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+        
+        .menu-toggle-container {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: auto;
+            margin-bottom: 30px;
+        }
+        
+        .menu-toggle {
+            background: var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .menu-toggle:hover {
+            background: var(--accent-color);
+        }
+        
+        .menu-toggle i {
+            font-size: 20px;
+        }
+        
+        .menu-options {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            background: white;
+            box-shadow: 3px 0 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: var(--transition);
+            z-index: 99;
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .sidebar:hover .menu-options {
+            width: 250px;
+            opacity: 1;
+            visibility: visible;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+        
+        .menu-option {
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--dark-color);
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+        
+        .menu-option:hover {
+            background: #f1f1f1;
+            padding-left: 15px;
+        }
+        
+        .menu-option i {
+            margin-right: 10px;
+            color: var(--primary-color);
+            width: 20px;
+            text-align: center;
+        }
+        
+        .menu-option.active {
+            background: #e8f0fe;
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .param-bar {
+            width: var(--param-width);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 90;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) #f1f1f1;
+        }
+        
+        .param-bar::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .param-bar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .param-bar::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+        
+        .param-bar::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+        
+        .param-bar h4 {
+            position: sticky;
+            top: -20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            margin: -20px -15px 20px -15px;
+            padding: 20px 15px 15px 15px;
+            border-bottom: 1px solid #eee;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .section-title {
+            font-size: 16px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 8px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 60px;
+            z-index: 5;
+            margin-left: -5px;
+            margin-right: -5px;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+        
+        .param-group {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .analysis-selector {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .analysis-type-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .analysis-type-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .analysis-type-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .analysis-type-btn.active {
+            background: white;
+            color: var(--primary-color);
+            border-color: white;
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.3);
+        }
+        
+        .analysis-type-btn i {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .fft-controls {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .fft-controls.active {
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .top-bar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .nav-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .nav-breadcrumb a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .nav-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .connection-status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .connection-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f1aeb5;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status-indicator.connected {
+            background: var(--success-color);
+        }
+        
+        .status-indicator.disconnected {
+            background: var(--danger-color);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .client-info-bar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .client-details {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .client-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        .client-icon.dc { background: var(--dc-color); }
+        .client-icon.single-phase { background: var(--single-phase-color); }
+        .client-icon.three-phase { background: var(--phase-a-color); }
+        
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 20px;
+            min-height: 400px;
+            position: relative;
+        }
+        
+        .chart-container.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .chart-title {
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: var(--dark-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            font-size: 1.1rem;
+        }
+        
+        .chart-title i {
+            color: var(--primary-color);
+            margin-right: 8px;
+        }
+        
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .stats-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card.primary { border-left-color: var(--primary-color); }
+        .stat-card.success { border-left-color: var(--success-color); }
+        .stat-card.warning { border-left-color: var(--warning-color); }
+        .stat-card.danger { border-left-color: var(--danger-color); }
+        .stat-card.dc { border-left-color: var(--dc-color); }
+        .stat-card.phase-a { border-left-color: var(--phase-a-color); }
+        .stat-card.phase-b { border-left-color: var(--phase-b-color); }
+        .stat-card.phase-c { border-left-color: var(--phase-c-color); }
+        
+        .stat-title {
+            color: var(--dark-color);
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+        
+        .stat-title i {
+            margin-right: 8px;
+            color: var(--primary-color);
+            font-size: 16px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+        
+        .stat-unit {
+            font-size: 14px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .progress-container {
+            margin-top: 10px;
+        }
+        
+        .progress {
+            height: 6px;
+            border-radius: 3px;
+            background: #e9ecef;
+        }
+        
+        .progress-bar {
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+        
+        .harmonic-analysis {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .harmonic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .harmonic-item {
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        
+        .harmonic-order {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .harmonic-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .harmonic-percent {
+            font-size: 10px;
+            color: #6c757d;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            color: white;
+            font-weight: 600;
+            transition: var(--transition);
+            width: 100%;
+            margin-top: 15px;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, var(--success-color), #00d4aa);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            color: white;
+            font-weight: 600;
+            transition: var(--transition);
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(45deg, #00d4aa, var(--success-color));
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 12px;
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--danger-color);
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #d1f7c4, #c3f7d0);
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .info-message {
+            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .power-quality-indicators {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .power-quality-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .quality-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        .quality-excellent {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .quality-good {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .quality-fair {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .quality-poor {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        @media (max-width: 1200px) {
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .param-bar {
+                width: 300px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 60px;
+                flex-direction: row;
+                justify-content: space-between;
+                padding: 0 20px;
+                position: fixed;
+                top: 0;
+                z-index: 1000;
+            }
+            
+            .param-bar {
+                width: 100%;
+                height: auto;
+                max-height: 50vh;
+                position: fixed;
+                top: 60px;
+                z-index: 999;
+                max-height: 0;
+                padding: 0 15px;
+                transition: max-height 0.3s ease;
+            }
+            
+            .param-bar.active {
+                max-height: 50vh;
+                padding: 20px 15px;
+            }
+            
+            .main-content {
+                width: 100%;
+                padding-top: 80px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+            
+            .analysis-type-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="appContainer">
+        <div class="sidebar">
+            <div class="menu-toggle-container">
+                <div class="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </div>
+            <div class="menu-options">
+                <div class="menu-option" onclick="goToClientSelection()">
+                    <i class="fas fa-arrow-left"></i> 返回客户端选择
+                </div>
+                <div class="menu-option" onclick="goToWaveformDisplay()">
+                    <i class="fas fa-chart-line"></i> 实时波形显示
+                </div>
+                <div class="menu-option active">
+                    <i class="fas fa-analytics"></i> 数据综合分析
+                </div>
+                <div class="menu-option">
+                    <i class="fas fa-calculator"></i> 高级分析工具
+                </div>
+                <div class="menu-option">
+                    <i class="fas fa-download"></i> 导出报告
+                </div>
+                <div class="menu-option">
+                    <i class="fas fa-cog"></i> 分析设置
+                </div>
+            </div>
+        </div>
+        
+        <div class="param-bar">
+            <h4 class="mb-4" style="color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px;">
+                <i class="fas fa-analytics me-2"></i>数据分析控制台
+            </h4>
+            
+            <!-- 分析类型选择器 -->
+            <div class="analysis-selector">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-brain me-2" style="font-size: 1.2rem;"></i>
+                    <strong>分析方法选择</strong>
+                </div>
+                <div class="analysis-type-grid">
+                    <div class="analysis-type-btn active" data-type="fft" onclick="selectAnalysisType('fft')">
+                        <i class="fas fa-wave-square"></i>
+                        FFT频谱
+                    </div>
+                    <div class="analysis-type-btn" data-type="harmonic" onclick="selectAnalysisType('harmonic')">
+                        <i class="fas fa-sine-wave"></i>
+                        谐波分析
+                    </div>
+                    <div class="analysis-type-btn" data-type="statistics" onclick="selectAnalysisType('statistics')">
+                        <i class="fas fa-chart-bar"></i>
+                        统计分析
+                    </div>
+                    <div class="analysis-type-btn" data-type="power" onclick="selectAnalysisType('power')">
+                        <i class="fas fa-bolt"></i>
+                        功率分析
+                    </div>
+                    <div class="analysis-type-btn" data-type="quality" onclick="selectAnalysisType('quality')">
+                        <i class="fas fa-award"></i>
+                        电能质量
+                    </div>
+                    <div class="analysis-type-btn" data-type="trend" onclick="selectAnalysisType('trend')">
+                        <i class="fas fa-chart-line"></i>
+                        趋势分析
+                    </div>
+                </div>
+            </div>
+            
+            <!-- FFT分析控制 -->
+            <div class="param-group" id="fftControls">
+                <div class="section-title">FFT频谱分析</div>
+                <div class="mb-3">
+                    <label class="form-label">FFT窗口大小</label>
+                    <select class="form-select" id="fftWindowSize">
+                        <option value="512">512点</option>
+                        <option value="1024" selected>1024点</option>
+                        <option value="2048">2048点</option>
+                        <option value="4096">4096点</option>
+                        <option value="8192">8192点</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">窗口函数</label>
+                    <select class="form-select" id="windowFunction">
+                        <option value="hanning" selected>汉宁窗</option>
+                        <option value="hamming">汉明窗</option>
+                        <option value="blackman">布莱克曼窗</option>
+                        <option value="rectangular">矩形窗</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">频率范围</label>
+                    <div class="row">
+                        <div class="col-6">
+                            <input type="number" class="form-control" id="freqMin" placeholder="最小频率" value="0">
+                        </div>
+                        <div class="col-6">
+                            <input type="number" class="form-control" id="freqMax" placeholder="最大频率" value="1000">
+                        </div>
+                    </div>
+                    <small class="form-text text-muted">Hz范围设置</small>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="logScale" checked>
+                    <label class="form-check-label" for="logScale">对数坐标</label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="showPeaks" checked>
+                    <label class="form-check-label" for="showPeaks">标记峰值</label>
+                </div>
+            </div>
+            
+            <!-- 谐波分析控制 -->
+            <div class="param-group" id="harmonicControls" style="display: none;">
+                <div class="section-title">谐波分析设置</div>
+                <div class="mb-3">
+                    <label class="form-label">基频 (Hz): <span id="fundamentalFreqValue">50</span></label>
+                    <input type="range" class="form-range" id="fundamentalFreq" min="45" max="65" value="50" step="0.1">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">分析谐波次数</label>
+                    <input type="number" class="form-control" id="harmonicOrder" value="20" min="5" max="50">
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="showTHD" checked>
+                    <label class="form-check-label" for="showTHD">计算THD</label>
+                </div>
+            </div>
+            
+            <!-- 统计分析控制 -->
+            <div class="param-group" id="statisticsControls" style="display: none;">
+                <div class="section-title">统计分析设置</div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="showDistribution" checked>
+                    <label class="form-check-label" for="showDistribution">概率分布</label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="showHistogram" checked>
+                    <label class="form-check-label" for="showHistogram">直方图</label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="showBoxPlot">
+                    <label class="form-check-label" for="showBoxPlot">箱线图</label>
+                </div>
+            </div>
+            
+            <!-- 功率分析控制 -->
+            <div class="param-group" id="powerControls" style="display: none;">
+                <div class="section-title">功率分析设置</div>
+                <div class="mb-3">
+                    <label class="form-label">电压有效值 (V)</label>
+                    <input type="number" class="form-control" id="rmsVoltage" step="0.01" placeholder="自动检测">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">电流有效值 (A)</label>
+                    <input type="number" class="form-control" id="rmsCurrent" step="0.01" placeholder="自动检测">
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="calculateReactive" checked>
+                    <label class="form-check-label" for="calculateReactive">无功功率</label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="calculateApparent" checked>
+                    <label class="form-check-label" for="calculateApparent">视在功率</label>
+                </div>
+            </div>
+            
+            <!-- 电能质量控制 -->
+            <div class="param-group" id="qualityControls" style="display: none;">
+                <div class="section-title">电能质量分析</div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="analyzeFlicker" checked>
+                    <label class="form-check-label" for="analyzeFlicker">闪变分析</label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="analyzeInterharmonics">
+                    <label class="form-check-label" for="analyzeInterharmonics">间谐波</label>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="analyzeUnbalance" checked>
+                    <label class="form-check-label" for="analyzeUnbalance">不平衡度</label>
+                </div>
+            </div>
+            
+            <!-- 分析参数 -->
+            <div class="param-group">
+                <div class="section-title">数据参数</div>
+                <div class="mb-3">
+                    <label class="form-label">选择分析列</label>
+                    <select class="form-select" id="analysisColumn">
+                        <option value="voltage">电压</option>
+                        <option value="current">电流</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">数据点数: <span id="dataPointsValue">2048</span></label>
+                    <input type="range" class="form-range" id="dataPoints" min="512" max="8192" value="2048" step="256">
+                </div>
+                
+                <div class="mb-3" id="workModeDisplay" style="display: none;">
+                    <label class="form-label">电力系统类型</label>
+                    <div id="workModeIndicator" class="work-mode-indicator">
+                        <i class="fas fa-question-circle"></i>
+                        <span>未检测</span>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="startAnalysisBtn">
+                <i class="fas fa-play me-2"></i>开始分析
+            </button>
+            
+            <button class="btn btn-success" id="exportResultsBtn" style="display: none;">
+                <i class="fas fa-download me-2"></i>导出结果
+            </button>
+        </div>
+        
+        <div class="main-content">
+            <div class="top-bar">
+                <div>
+                    <div class="nav-breadcrumb">
+                        <a href="/client-selection">客户端选择</a>
+                        <i class="fas fa-chevron-right"></i>
+                        <span>数据综合分析</span>
+                    </div>
+                    <h2 class="mb-0 mt-2">
+                        <i class="fas fa-analytics me-2" style="color: var(--primary-color);"></i>
+                        电力数据综合分析
+                    </h2>
+                    <p class="text-muted mb-0">FFT频谱分析 · 谐波检测 · 统计分析 · 电能质量评估</p>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="connection-status connected" id="connectionStatus">
+                        <div class="status-indicator connected"></div>
+                        <span>已连接</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="messageArea"></div>
+            
+            <!-- 客户端信息栏 -->
+            <div class="client-info-bar" id="clientInfoBar" style="display: none;">
+                <div class="client-details">
+                    <div class="client-icon single-phase" id="clientIcon">
+                        <i class="fas fa-plug"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0" id="clientName">未选择客户端</h6>
+                        <small class="text-muted" id="clientStatus">请从侧边栏开始分析</small>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="goToClientSelection()">
+                        <i class="fas fa-exchange-alt me-1"></i>切换客户端
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="goToWaveformDisplay()">
+                        <i class="fas fa-chart-line me-1"></i>波形显示
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 分析结果网格 -->
+            <div class="analysis-grid" id="analysisGrid">
+                <!-- 主图表区域 -->
+                <div class="chart-container full-width" id="mainChartContainer">
+                    <div class="chart-title">
+                        <span id="mainChartTitle">
+                            <i class="fas fa-wave-square"></i>FFT频谱分析
+                        </span>
+                        <div class="chart-controls">
+                            <span class="text-muted" id="analysisTime">等待分析...</span>
+                        </div>
+                    </div>
+                    <canvas id="mainChart" style="min-height: 400px;"></canvas>
+                    <div class="loading-overlay" id="mainChartLoading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p>正在进行分析计算...</p>
+                    </div>
+                </div>
+                
+                <!-- 次要图表区域 -->
+                <div class="chart-container" id="secondaryChartContainer">
+                    <div class="chart-title">
+                        <span id="secondaryChartTitle">
+                            <i class="fas fa-chart-bar"></i>幅值分布
+                        </span>
+                    </div>
+                    <canvas id="secondaryChart" style="min-height: 300px;"></canvas>
+                    <div class="loading-overlay" id="secondaryChartLoading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p>生成次要图表...</p>
+                    </div>
+                </div>
+                
+                <!-- 详细图表区域 -->
+                <div class="chart-container" id="detailChartContainer">
+                    <div class="chart-title">
+                        <span id="detailChartTitle">
+                            <i class="fas fa-microscope"></i>详细分析
+                        </span>
+                    </div>
+                    <canvas id="detailChart" style="min-height: 300px;"></canvas>
+                </div>
+            </div>
+            
+            <!-- 统计结果容器 -->
+            <div class="stats-container" id="statsContainer">
+                <h5 class="mb-3">
+                    <i class="fas fa-calculator me-2"></i>分析结果统计
+                </h5>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-chart-pie" style="font-size: 2rem; opacity: 0.5; margin-bottom: 1rem;"></i>
+                        <p>执行分析后查看详细统计结果</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 谐波分析结果 -->
+            <div class="harmonic-analysis" id="harmonicAnalysis" style="display: none;">
+                <h5 class="mb-3">
+                    <i class="fas fa-sine-wave me-2"></i>谐波成分分析
+                </h5>
+                <div class="harmonic-grid" id="harmonicGrid">
+                    <!-- 动态生成谐波内容 -->
+                </div>
+            </div>
+            
+            <!-- 电能质量指标 -->
+            <div class="stats-container" id="powerQualityContainer" style="display: none;">
+                <h5 class="mb-3">
+                    <i class="fas fa-award me-2"></i>电能质量评估
+                </h5>
+                <div class="power-quality-indicators" id="powerQualityGrid">
+                    <!-- 动态生成电能质量指标 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let mainChart = null;
+        let secondaryChart = null;
+        let detailChart = null;
+        let websocket = null;
+        let selectedClientId = null;
+        let currentWorkMode = 'single_phase';
+        let currentAnalysisType = 'fft';
+        let analysisData = null;
+        let webClientId = 'web_' + Math.random().toString(36).substr(2, 9);
+        let isConnected = false;
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginAndClientSelection();
+            initCharts();
+            setupEventListeners();
+            connectWebSocket();
+        });
+
+        // 检查登录状态和客户端选择
+        function checkLoginAndClientSelection() {
+            // 检查登录状态
+            const savedLogin = localStorage.getItem('userLogin') || sessionStorage.getItem('userLogin');
+            if (!savedLogin) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            // 检查是否选择了客户端
+            const selectedClient = sessionStorage.getItem('selectedClientId');
+            if (!selectedClient) {
+                window.location.href = '/client-selection';
+                return;
+            }
+            
+            selectedClientId = selectedClient;
+            updateClientInfo(selectedClient);
+        }
+
+        // 更新客户端信息显示
+        function updateClientInfo(clientId) {
+            const clientInfoBar = document.getElementById('clientInfoBar');
+            const clientName = document.getElementById('clientName');
+            const clientStatus = document.getElementById('clientStatus');
+            const clientIcon = document.getElementById('clientIcon');
+            
+            clientInfoBar.style.display = 'flex';
+            clientName.textContent = clientId;
+            clientStatus.textContent = '准备分析数据...';
+            
+            // 这里可以根据客户端类型设置图标
+            clientIcon.className = 'client-icon single-phase';
+        }
+
+        // 导航函数
+        function goToClientSelection() {
+            window.location.href = '/client-selection';
+        }
+
+        function goToWaveformDisplay() {
+            if (selectedClientId) {
+                sessionStorage.setItem('selectedClientId', selectedClientId);
+                sessionStorage.setItem('analysisMode', 'waveform');
+            }
+            window.location.href = '/waveform-display';
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // 主图表 - FFT频谱
+            const mainCtx = document.getElementById('mainChart').getContext('2d');
+            mainChart = new Chart(mainCtx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(4)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '频率 (Hz)' },
+                            type: 'linear'
+                        },
+                        y: {
+                            title: { display: true, text: '幅值' },
+                            type: 'logarithmic'
+                        }
+                    },
+                    elements: {
+                        point: { radius: 0, hoverRadius: 3 },
+                        line: { borderWidth: 2 }
+                    },
+                    animation: { duration: 750 }
+                }
+            });
+
+            // 次要图表 - 统计分析
+            const secondaryCtx = document.getElementById('secondaryChart').getContext('2d');
+            secondaryChart = new Chart(secondaryCtx, {
+                type: 'bar',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        x: { title: { display: true, text: '幅值区间' } },
+                        y: { title: { display: true, text: '频次' } }
+                    }
+                }
+            });
+
+            // 详细图表 - 相位或其他分析
+            const detailCtx = document.getElementById('detailChart').getContext('2d');
+            detailChart = new Chart(detailCtx, {
+                type: 'scatter',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        x: { title: { display: true, text: '实部' } },
+                        y: { title: { display: true, text: '虚部' } }
+                    }
+                }
+            });
+        }
+
+        // WebSocket连接
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/${webClientId}`;
+            
+            try {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket connected');
+                    isConnected = true;
+                    updateConnectionStatus('connected', '已连接');
+                };
+                
+                websocket.onmessage = function(event) {
+                    const message = JSON.parse(event.data);
+                    handleWebSocketMessage(message);
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket disconnected');
+                    isConnected = false;
+                    updateConnectionStatus('disconnected', '连接断开');
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    isConnected = false;
+                    updateConnectionStatus('disconnected', '连接错误');
+                };
+                
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+                isConnected = false;
+                updateConnectionStatus('disconnected', '连接失败');
+            }
+        }
+
+        // 处理WebSocket消息
+        function handleWebSocketMessage(message) {
+            console.log('Received message:', message);
+            // WebSocket消息处理逻辑
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            document.getElementById('startAnalysisBtn').addEventListener('click', startAnalysis);
+            document.getElementById('exportResultsBtn').addEventListener('click', exportResults);
+            
+            // 滑块事件
+            document.getElementById('dataPoints').addEventListener('input', function() {
+                document.getElementById('dataPointsValue').textContent = this.value;
+            });
+
+            document.getElementById('fundamentalFreq').addEventListener('input', function() {
+                document.getElementById('fundamentalFreqValue').textContent = this.value;
+            });
+        }
+
+        // 选择分析类型
+        function selectAnalysisType(type) {
+            currentAnalysisType = type;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.analysis-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-type="${type}"]`).classList.add('active');
+            
+            // 显示/隐藏相应的控制面板
+            const controlPanels = {
+                'fft': 'fftControls',
+                'harmonic': 'harmonicControls',
+                'statistics': 'statisticsControls',
+                'power': 'powerControls',
+                'quality': 'qualityControls',
+                'trend': 'fftControls' // 趋势分析复用FFT控制
+            };
+            
+            // 隐藏所有控制面板
+            Object.values(controlPanels).forEach(panelId => {
+                const panel = document.getElementById(panelId);
+                if (panel) panel.style.display = 'none';
+            });
+            
+            // 显示选中的控制面板
+            const selectedPanel = document.getElementById(controlPanels[type]);
+            if (selectedPanel) selectedPanel.style.display = 'block';
+            
+            // 更新主图表标题
+            const titles = {
+                'fft': '<i class="fas fa-wave-square"></i>FFT频谱分析',
+                'harmonic': '<i class="fas fa-sine-wave"></i>谐波分析',
+                'statistics': '<i class="fas fa-chart-bar"></i>统计分析',
+                'power': '<i class="fas fa-bolt"></i>功率分析',
+                'quality': '<i class="fas fa-award"></i>电能质量分析',
+                'trend': '<i class="fas fa-chart-line"></i>趋势分析'
+            };
+            
+            document.getElementById('mainChartTitle').innerHTML = titles[type];
+        }
+
+        // 开始分析
+        async function startAnalysis() {
+            if (!selectedClientId) {
+                showError('请先选择一个客户端');
+                return;
+            }
+            
+            const startBtn = document.getElementById('startAnalysisBtn');
+            const originalText = startBtn.innerHTML;
+            
+            try {
+                // 显示加载状态
+                startBtn.disabled = true;
+                startBtn.innerHTML = '<div class="loading-spinner"></div>分析中...';
+                
+                showLoading('mainChartLoading');
+                showLoading('secondaryChartLoading');
+                
+                // 准备分析参数
+                const analysisParams = {
+                    client_id: selectedClientId,
+                    analysis_type: currentAnalysisType,
+                    selected_column: document.getElementById('analysisColumn').value,
+                    data_points: parseInt(document.getElementById('dataPoints').value)
+                };
+                
+                // 根据分析类型添加特定参数
+                if (currentAnalysisType === 'fft') {
+                    analysisParams.fft_window_size = parseInt(document.getElementById('fftWindowSize').value);
+                    analysisParams.window_function = document.getElementById('windowFunction').value;
+                    analysisParams.freq_min = parseFloat(document.getElementById('freqMin').value);
+                    analysisParams.freq_max = parseFloat(document.getElementById('freqMax').value);
+                    analysisParams.log_scale = document.getElementById('logScale').checked;
+                    analysisParams.show_peaks = document.getElementById('showPeaks').checked;
+                }
+                
+                // 调用分析API
+                const response = await fetch('/api/advanced_analysis', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(analysisParams)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    analysisData = result.data;
+                    
+                    // 根据分析类型显示结果
+                    switch (currentAnalysisType) {
+                        case 'fft':
+                            await displayFFTResults(result.data);
+                            break;
+                        case 'harmonic':
+                            await displayHarmonicResults(result.data);
+                            break;
+                        case 'statistics':
+                            await displayStatisticsResults(result.data);
+                            break;
+                        case 'power':
+                            await displayPowerResults(result.data);
+                            break;
+                        case 'quality':
+                            await displayQualityResults(result.data);
+                            break;
+                        case 'trend':
+                            await displayTrendResults(result.data);
+                            break;
+                    }
+                    
+                    showSuccess('分析完成！');
+                    document.getElementById('exportResultsBtn').style.display = 'block';
+                    document.getElementById('analysisTime').textContent = `分析时间: ${new Date().toLocaleTimeString()}`;
+                    
+                } else {
+                    showError(result.message || '分析失败');
+                }
+                
+            } catch (error) {
+                console.error('Analysis failed:', error);
+                showError('分析过程中发生错误: ' + error.message);
+            } finally {
+                startBtn.disabled = false;
+                startBtn.innerHTML = originalText;
+                hideLoading('mainChartLoading');
+                hideLoading('secondaryChartLoading');
+            }
+        }
+
+        // FFT分析结果显示
+        async function displayFFTResults(data) {
+            if (!data.fft_result) return;
+            
+            const fftData = data.fft_result;
+            
+            // 更新主图表 - 频谱
+            mainChart.data.datasets = [{
+                label: 'FFT 频谱',
+                data: fftData.spectrum.map((val, idx) => ({
+                    x: fftData.frequencies[idx],
+                    y: Math.abs(val)
+                })),
+                borderColor: 'rgb(102, 126, 234)',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 2,
+                fill: false
+            }];
+            
+            if (document.getElementById('showPeaks').checked && fftData.peaks) {
+                mainChart.data.datasets.push({
+                    label: '峰值点',
+                    data: fftData.peaks.map(peak => ({
+                        x: peak.frequency,
+                        y: peak.magnitude
+                    })),
+                    type: 'scatter',
+                    backgroundColor: 'rgb(231, 76, 60)',
+                    borderColor: 'rgb(231, 76, 60)',
+                    pointRadius: 6
+                });
+            }
+            
+            mainChart.options.scales.y.type = document.getElementById('logScale').checked ? 'logarithmic' : 'linear';
+            mainChart.update();
+            
+            // 更新次要图表 - 相位
+            if (fftData.phases) {
+                secondaryChart.data.datasets = [{
+                    label: '相位谱',
+                    data: fftData.phases.map((val, idx) => ({
+                        x: fftData.frequencies[idx],
+                        y: val * 180 / Math.PI // 转换为度
+                    })),
+                    borderColor: 'rgb(243, 156, 18)',
+                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                    borderWidth: 2,
+                    type: 'line'
+                }];
+                
+                secondaryChart.options.scales.x.title.text = '频率 (Hz)';
+                secondaryChart.options.scales.y.title.text = '相位 (度)';
+                secondaryChart.update();
+                
+                document.getElementById('secondaryChartTitle').innerHTML = '<i class="fas fa-chart-line"></i>相位谱';
+            }
+            
+            // 更新详细图表 - 复平面
+            if (fftData.spectrum) {
+                detailChart.data.datasets = [{
+                    label: '复频谱',
+                    data: fftData.spectrum.map(val => ({
+                        x: val.real || Math.cos(val),
+                        y: val.imag || Math.sin(val)
+                    })),
+                    backgroundColor: 'rgba(46, 204, 113, 0.6)',
+                    borderColor: 'rgb(46, 204, 113)',
+                    pointRadius: 2
+                }];
+                
+                detailChart.options.scales.x.title.text = '实部';
+                detailChart.options.scales.y.title.text = '虚部';
+                detailChart.update();
+                
+                document.getElementById('detailChartTitle').innerHTML = '<i class="fas fa-microscope"></i>复平面';
+            }
+            
+            // 更新统计信息
+            updateStatsGrid(data.statistics);
+        }
+
+        // 谐波分析结果显示
+        async function displayHarmonicResults(data) {
+            if (!data.harmonic_result) return;
+            
+            const harmonicData = data.harmonic_result;
+            
+            // 显示谐波分析容器
+            document.getElementById('harmonicAnalysis').style.display = 'block';
+            
+            // 更新主图表 - 谐波频谱
+            mainChart.data.datasets = [{
+                label: '谐波成分',
+                data: harmonicData.harmonics.map((val, idx) => ({
+                    x: (idx + 1) * harmonicData.fundamental_freq,
+                    y: val.magnitude
+                })),
+                borderColor: 'rgb(231, 76, 60)',
+                backgroundColor: 'rgba(231, 76, 60, 0.6)',
+                type: 'bar'
+            }];
+            
+            mainChart.options.scales.x.title.text = '频率 (Hz)';
+            mainChart.options.scales.y.title.text = '幅值';
+            mainChart.options.scales.y.type = 'linear';
+            mainChart.update();
+            
+            // 生成谐波网格
+            const harmonicGrid = document.getElementById('harmonicGrid');
+            harmonicGrid.innerHTML = harmonicData.harmonics.map((harmonic, idx) => `
+                <div class="harmonic-item">
+                    <div class="harmonic-order">${idx + 1}次谐波</div>
+                    <div class="harmonic-value">${harmonic.magnitude.toFixed(3)}</div>
+                    <div class="harmonic-percent">${(harmonic.percentage || 0).toFixed(1)}%</div>
+                </div>
+            `).join('');
+            
+            // 更新统计信息
+            updateStatsGrid({
+                ...data.statistics,
+                thd: {
+                    title: '总谐波失真 (THD)',
+                    value: harmonicData.thd ? `${harmonicData.thd.toFixed(2)}%` : '计算中',
+                    unit: '',
+                    icon: 'fas fa-exclamation-triangle'
+                },
+                fundamental: {
+                    title: '基波频率',
+                    value: harmonicData.fundamental_freq.toFixed(1),
+                    unit: 'Hz',
+                    icon: 'fas fa-wave-square'
+                }
+            });
+        }
+
+        // 统计分析结果显示
+        async function displayStatisticsResults(data) {
+            if (!data.statistics_result) return;
+            
+            const statsData = data.statistics_result;
+            
+            // 更新主图表 - 直方图
+            if (statsData.histogram) {
+                mainChart.data.datasets = [{
+                    label: '数据分布',
+                    data: statsData.histogram.bins.map((bin, idx) => ({
+                        x: bin,
+                        y: statsData.histogram.counts[idx]
+                    })),
+                    backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                    borderColor: 'rgb(102, 126, 234)',
+                    borderWidth: 2,
+                    type: 'bar'
+                }];
+                
+                mainChart.options.scales.x.title.text = '数值';
+                mainChart.options.scales.y.title.text = '频次';
+                mainChart.options.scales.y.type = 'linear';
+                mainChart.update();
+            }
+            
+            // 更新次要图表 - 累积分布
+            if (statsData.cdf) {
+                secondaryChart.data.datasets = [{
+                    label: '累积分布函数',
+                    data: statsData.cdf.x.map((x, idx) => ({
+                        x: x,
+                        y: statsData.cdf.y[idx]
+                    })),
+                    borderColor: 'rgb(46, 204, 113)',
+                    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                    borderWidth: 2,
+                    type: 'line',
+                    fill: true
+                }];
+                
+                secondaryChart.options.scales.x.title.text = '数值';
+                secondaryChart.options.scales.y.title.text = '累积概率';
+                secondaryChart.update();
+                
+                document.getElementById('secondaryChartTitle').innerHTML = '<i class="fas fa-chart-area"></i>累积分布';
+            }
+            
+            // 更新详细图表 - Q-Q图
+            if (statsData.qq_plot) {
+                detailChart.data.datasets = [{
+                    label: 'Q-Q 图',
+                    data: statsData.qq_plot.theoretical.map((val, idx) => ({
+                        x: val,
+                        y: statsData.qq_plot.sample[idx]
+                    })),
+                    backgroundColor: 'rgba(155, 89, 182, 0.6)',
+                    borderColor: 'rgb(155, 89, 182)',
+                    pointRadius: 3
+                }];
+                
+                detailChart.options.scales.x.title.text = '理论分位数';
+                detailChart.options.scales.y.title.text = '样本分位数';
+                detailChart.update();
+                
+                document.getElementById('detailChartTitle').innerHTML = '<i class="fas fa-microscope"></i>正态性检验';
+            }
+            
+            // 更新统计信息
+            updateStatsGrid(data.statistics);
+        }
+
+        // 功率分析结果显示
+        async function displayPowerResults(data) {
+            if (!data.power_result) return;
+            
+            const powerData = data.power_result;
+            
+            // 更新主图表 - 功率随时间变化
+            if (powerData.power_time_series) {
+                mainChart.data.datasets = [
+                    {
+                        label: '有功功率',
+                        data: powerData.power_time_series.active,
+                        borderColor: 'rgb(231, 76, 60)',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 2,
+                        type: 'line'
+                    },
+                    {
+                        label: '无功功率',
+                        data: powerData.power_time_series.reactive,
+                        borderColor: 'rgb(52, 152, 219)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        type: 'line'
+                    }
+                ];
+                
+                mainChart.options.scales.x.title.text = '时间';
+                mainChart.options.scales.y.title.text = '功率 (W)';
+                mainChart.options.scales.y.type = 'linear';
+                mainChart.update();
+            }
+            
+            // 更新统计信息
+            updateStatsGrid({
+                ...data.statistics,
+                active_power: {
+                    title: '平均有功功率',
+                    value: powerData.average_active_power?.toFixed(2) || '0.00',
+                    unit: 'W',
+                    icon: 'fas fa-bolt'
+                },
+                reactive_power: {
+                    title: '平均无功功率',
+                    value: powerData.average_reactive_power?.toFixed(2) || '0.00',
+                    unit: 'VAR',
+                    icon: 'fas fa-exchange-alt'
+                },
+                apparent_power: {
+                    title: '视在功率',
+                    value: powerData.apparent_power?.toFixed(2) || '0.00',
+                    unit: 'VA',
+                    icon: 'fas fa-calculator'
+                },
+                power_factor: {
+                    title: '功率因数',
+                    value: powerData.power_factor?.toFixed(3) || '0.000',
+                    unit: '',
+                    icon: 'fas fa-percentage'
+                }
+            });
+        }
+
+        // 电能质量结果显示
+        async function displayQualityResults(data) {
+            if (!data.quality_result) return;
+            
+            const qualityData = data.quality_result;
+            
+            // 显示电能质量容器
+            document.getElementById('powerQualityContainer').style.display = 'block';
+            
+            // 生成电能质量指标
+            const qualityGrid = document.getElementById('powerQualityGrid');
+            const qualityIndicators = [
+                {
+                    name: '电压偏差',
+                    value: qualityData.voltage_deviation || 0,
+                    unit: '%',
+                    status: getQualityStatus(Math.abs(qualityData.voltage_deviation || 0), [2, 5, 10])
+                },
+                {
+                    name: '频率偏差',
+                    value: qualityData.frequency_deviation || 0,
+                    unit: 'Hz',
+                    status: getQualityStatus(Math.abs(qualityData.frequency_deviation || 0), [0.1, 0.2, 0.5])
+                },
+                {
+                    name: '电压不平衡',
+                    value: qualityData.voltage_unbalance || 0,
+                    unit: '%',
+                    status: getQualityStatus(Math.abs(qualityData.voltage_unbalance || 0), [1, 2, 4])
+                },
+                {
+                    name: '闪变值',
+                    value: qualityData.flicker || 0,
+                    unit: '',
+                    status: getQualityStatus(Math.abs(qualityData.flicker || 0), [0.35, 0.5, 1.0])
+                }
+            ];
+            
+            qualityGrid.innerHTML = qualityIndicators.map(indicator => `
+                <div class="power-quality-item">
+                    <h6>${indicator.name}</h6>
+                    <div style="font-size: 1.2rem; font-weight: 600; color: var(--primary-color);">
+                        ${indicator.value.toFixed(2)}${indicator.unit}
+                    </div>
+                    <div class="quality-status quality-${indicator.status}">
+                        ${getQualityText(indicator.status)}
+                    </div>
+                </div>
+            `).join('');
+            
+            // 更新统计信息
+            updateStatsGrid(data.statistics);
+        }
+
+        // 趋势分析结果显示
+        async function displayTrendResults(data) {
+            // 趋势分析可以复用FFT结果显示，增加趋势线
+            await displayFFTResults(data);
+        }
+
+        // 获取电能质量状态
+        function getQualityStatus(value, thresholds) {
+            if (value <= thresholds[0]) return 'excellent';
+            if (value <= thresholds[1]) return 'good';
+            if (value <= thresholds[2]) return 'fair';
+            return 'poor';
+        }
+
+        // 获取电能质量文本
+        function getQualityText(status) {
+            const texts = {
+                'excellent': '优秀',
+                'good': '良好',
+                'fair': '一般',
+                'poor': '较差'
+            };
+            return texts[status] || '未知';
+        }
+
+        // 更新统计网格
+        function updateStatsGrid(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            
+            if (!stats || Object.keys(stats).length === 0) {
+                statsGrid.innerHTML = '<div class="text-center text-muted py-3">暂无统计数据</div>';
+                return;
+            }
+            
+            const statCards = Object.entries(stats).map(([key, stat]) => {
+                if (!stat || !stat.title) return '';
+                
+                const cardClass = getStatCardClass(key);
+                const progressValue = getProgressValue(stat.value);
+                
+                return `
+                    <div class="stat-card ${cardClass}">
+                        <div class="stat-title">
+                            <i class="${stat.icon || 'fas fa-chart-bar'}"></i>
+                            ${stat.title}
+                        </div>
+                        <div class="stat-value">
+                            ${stat.value}
+                            <span class="stat-unit">${stat.unit || ''}</span>
+                        </div>
+                        ${progressValue !== null ? `
+                            <div class="progress-container">
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" style="width: ${progressValue}%"></div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).filter(card => card).join('');
+            
+            if (statCards) {
+                statsGrid.innerHTML = statCards;
+            } else {
+                statsGrid.innerHTML = '<div class="text-center text-muted py-3">暂无统计数据</div>';
+            }
+        }
+
+        // 获取统计卡片类名
+        function getStatCardClass(key) {
+            if (key.includes('voltage')) return 'primary';
+            if (key.includes('current')) return 'success';
+            if (key.includes('power')) return 'warning';
+            if (key.includes('thd')) return 'danger';
+            if (key.includes('_a')) return 'phase-a';
+            if (key.includes('_b')) return 'phase-b';
+            if (key.includes('_c')) return 'phase-c';
+            return 'primary';
+        }
+
+        // 获取进度条值
+        function getProgressValue(value) {
+            // 尝试从数值中提取百分比
+            const numericValue = parseFloat(String(value).replace(/[^\d.-]/g, ''));
+            if (isNaN(numericValue)) return null;
+            if (numericValue >= 0 && numericValue <= 100) return numericValue;
+            if (numericValue >= 0 && numericValue <= 1) return numericValue * 100;
+            return null;
+        }
+
+        // 导出结果
+        function exportResults() {
+            if (!analysisData) {
+                showError('没有可导出的分析结果');
+                return;
+            }
+            
+            const exportData = {
+                timestamp: new Date().toISOString(),
+                client_id: selectedClientId,
+                analysis_type: currentAnalysisType,
+                results: analysisData
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+                type: 'application/json'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${selectedClientId}_${currentAnalysisType}_${new Date().getTime()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showSuccess('分析结果已导出');
+        }
+
+        // 显示/隐藏加载状态
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'flex';
+        }
+
+        function hideLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'none';
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(status, text) {
+            const statusElement = document.getElementById('connectionStatus');
+            const indicatorElement = statusElement.querySelector('.status-indicator');
+            
+            statusElement.className = `connection-status ${status}`;
+            indicatorElement.className = `status-indicator ${status}`;
+            statusElement.querySelector('span').textContent = text;
+        }
+
+        // 显示消息
+        function showSuccess(message) {
+            showMessage(message, 'success');
+        }
+        
+        function showError(message) {
+            showMessage(message, 'error');
+        }
+        
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('messageArea');
+            const messageClass = `${type}-message`;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = messageClass;
+            messageDiv.innerHTML = `
+                <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                              type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close float-end" aria-label="Close" onclick="this.parentElement.remove()"></button>
+            `;
+            
+            // 移除旧消息
+            const existingMessages = messageArea.children;
+            if (existingMessages.length > 2) {
+                existingMessages[0].remove();
+            }
+            
+            messageArea.appendChild(messageDiv);
+            
+            // 自动移除
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

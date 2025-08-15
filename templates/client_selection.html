@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电力波形分析系统 - 客户端选择</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #4facfe;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-color: #2c3e50;
+            --light-bg: #f8f9fa;
+            --dc-color: #9b59b6;
+            --single-phase-color: #3498db;
+            --three-phase-color: #e74c3c;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 2rem 0;
+        }
+
+        .header-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-details {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .system-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            color: var(--dark-color);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .client-filters {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-select {
+            border: none;
+            background: white;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .refresh-btn {
+            background: linear-gradient(45deg, var(--success-color), #00d4aa);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .clients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .client-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .client-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--single-phase-color);
+        }
+
+        .client-card.dc::before {
+            background: var(--dc-color);
+        }
+
+        .client-card.three-phase::before {
+            background: var(--three-phase-color);
+        }
+
+        .client-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .client-card.selected {
+            border-color: var(--success-color);
+            background: linear-gradient(145deg, #ffffff, #f8fff9);
+        }
+
+        .client-card.offline {
+            opacity: 0.6;
+            filter: grayscale(0.5);
+        }
+
+        .client-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .client-id {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .client-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .client-status.connected {
+            background: #d1f7c4;
+            color: #155724;
+        }
+
+        .client-status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .client-status.inactive {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        .status-dot.offline {
+            background: #dc3545;
+        }
+
+        .status-dot.inactive {
+            background: #ffc107;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .power-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .power-type-badge.dc {
+            background: rgba(155, 89, 182, 0.1);
+            color: var(--dc-color);
+            border: 1px solid rgba(155, 89, 182, 0.2);
+        }
+
+        .power-type-badge.single-phase {
+            background: rgba(52, 152, 219, 0.1);
+            color: var(--single-phase-color);
+            border: 1px solid rgba(52, 152, 219, 0.2);
+        }
+
+        .power-type-badge.three-phase {
+            background: rgba(231, 76, 60, 0.1);
+            color: var(--three-phase-color);
+            border: 1px solid rgba(231, 76, 60, 0.2);
+        }
+
+        .client-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-bottom: 0.25rem;
+        }
+
+        .info-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+
+        .client-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-waveform {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .btn-waveform:hover {
+            background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+        }
+
+        .btn-analysis {
+            background: linear-gradient(45deg, var(--success-color), #00d4aa);
+            color: white;
+        }
+
+        .btn-analysis:hover {
+            background: linear-gradient(45deg, #00d4aa, var(--success-color));
+        }
+
+        .no-clients {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+
+        .no-clients i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .connection-status.connected {
+            background: #d1f7c4;
+            color: #155724;
+        }
+
+        .connection-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 2px solid var(--danger-color);
+            color: var(--danger-color);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .clients-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .user-info {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .system-stats {
+                justify-content: center;
+            }
+
+            .client-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                justify-content: center;
+            }
+
+            .client-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部信息 -->
+        <div class="header-section">
+            <div class="user-info">
+                <div class="user-details">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-1" id="userName">管理员</h4>
+                        <p class="mb-0 text-muted">欢迎使用电力波形分析系统</p>
+                    </div>
+                </div>
+                <div class="system-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalClients">0</div>
+                        <div class="stat-label">客户端</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="onlineClients">0</div>
+                        <div class="stat-label">在线</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="systemUptime">运行中</div>
+                        <div class="stat-label">系统状态</div>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt me-2"></i>退出
+                </button>
+            </div>
+        </div>
+
+        <!-- 主要内容 -->
+        <div class="main-container">
+            <h2 class="section-title">
+                <i class="fas fa-server"></i>
+                电力数据源客户端
+            </h2>
+
+            <!-- 筛选和控制 -->
+            <div class="client-filters">
+                <div class="filter-group">
+                    <label>电力类型：</label>
+                    <select class="filter-select" id="powerTypeFilter">
+                        <option value="">全部类型</option>
+                        <option value="dc">直流 (DC)</option>
+                        <option value="single_phase">单相</option>
+                        <option value="three_phase">三相</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>连接状态：</label>
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">全部状态</option>
+                        <option value="connected">在线</option>
+                        <option value="offline">离线</option>
+                        <option value="inactive">非活跃</option>
+                    </select>
+                </div>
+                <button class="refresh-btn" onclick="refreshClients()">
+                    <i class="fas fa-sync-alt me-2"></i>刷新
+                </button>
+            </div>
+
+            <!-- 客户端列表 -->
+            <div class="clients-grid" id="clientsGrid">
+                <div class="no-clients">
+                    <i class="fas fa-spin fa-spinner"></i>
+                    <h5>正在加载客户端列表...</h5>
+                    <p>请稍候，系统正在获取可用的电力数据源</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 连接状态指示器 -->
+    <div class="connection-status disconnected" id="connectionStatus">
+        <div class="status-dot disconnected"></div>
+        <span>连接中...</span>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let websocket = null;
+        let clients = [];
+        let selectedClientId = null;
+        let webClientId = 'web_' + Math.random().toString(36).substr(2, 9);
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            initializeWebSocket();
+            loadUserInfo();
+            setupFilters();
+        });
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const savedLogin = localStorage.getItem('userLogin') || sessionStorage.getItem('userLogin');
+            if (!savedLogin) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            const loginData = JSON.parse(savedLogin);
+            // 检查登录是否在24小时内
+            const loginTime = new Date(loginData.loginTime);
+            const now = new Date();
+            const timeDiff = now - loginTime;
+            
+            if (timeDiff > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('userLogin');
+                sessionStorage.removeItem('userLogin');
+                window.location.href = '/login';
+                return;
+            }
+            
+            return loginData;
+        }
+
+        // 加载用户信息
+        function loadUserInfo() {
+            const loginData = checkLoginStatus();
+            if (loginData) {
+                document.getElementById('userName').textContent = `${loginData.username} (${getRoleByUsername(loginData.username)})`;
+            }
+        }
+
+        // 根据用户名获取角色
+        function getRoleByUsername(username) {
+            const roles = {
+                'admin': '系统管理员',
+                'engineer': '电力工程师',
+                'operator': '设备操作员',
+                'demo': '演示用户'
+            };
+            return roles[username] || '用户';
+        }
+
+        // 初始化WebSocket连接
+        function initializeWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/${webClientId}`;
+            
+            try {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket connected');
+                    updateConnectionStatus('connected');
+                    requestClientList();
+                };
+                
+                websocket.onmessage = function(event) {
+                    const message = JSON.parse(event.data);
+                    handleWebSocketMessage(message);
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket disconnected');
+                    updateConnectionStatus('disconnected');
+                    // 3秒后重连
+                    setTimeout(initializeWebSocket, 3000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('disconnected');
+                };
+                
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+                updateConnectionStatus('disconnected');
+            }
+        }
+
+        // 处理WebSocket消息
+        function handleWebSocketMessage(message) {
+            switch (message.type) {
+                case 'client_list_update':
+                    updateClientList(message.clients);
+                    break;
+                case 'pong':
+                    console.log('Received pong');
+                    break;
+                default:
+                    console.log('Unknown message type:', message.type);
+            }
+        }
+
+        // 请求客户端列表
+        function requestClientList() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({type: 'get_client_list'}));
+            }
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            const statusDot = statusEl.querySelector('.status-dot');
+            
+            statusEl.className = `connection-status ${status}`;
+            statusDot.className = `status-dot ${status}`;
+            
+            if (status === 'connected') {
+                statusEl.querySelector('span').textContent = '已连接';
+            } else {
+                statusEl.querySelector('span').textContent = '连接断开';
+            }
+        }
+
+        // 更新客户端列表
+        function updateClientList(clientData) {
+            clients = clientData || [];
+            
+            // 更新统计信息
+            const totalClients = clients.length;
+            const onlineClients = clients.filter(c => c.status === 'connected').length;
+            
+            document.getElementById('totalClients').textContent = totalClients;
+            document.getElementById('onlineClients').textContent = onlineClients;
+            
+            // 渲染客户端列表
+            renderClientList();
+        }
+
+        // 渲染客户端列表
+        function renderClientList() {
+            const grid = document.getElementById('clientsGrid');
+            
+            // 应用筛选
+            const filteredClients = applyFilters(clients);
+            
+            if (filteredClients.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-clients">
+                        <i class="fas fa-server"></i>
+                        <h5>暂无客户端</h5>
+                        <p>当前没有符合条件的电力数据源客户端</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = filteredClients.map(client => {
+                const powerTypeClass = getPowerTypeClass(client.power_type);
+                const statusClass = client.status;
+                const isOffline = client.status !== 'connected';
+                
+                return `
+                    <div class="client-card ${powerTypeClass} ${isOffline ? 'offline' : ''}" 
+                         onclick="selectClient('${client.id}')">
+                        <div class="client-header">
+                            <div class="client-id">${client.id}</div>
+                            <div class="client-status ${statusClass}">
+                                <div class="status-dot ${statusClass}"></div>
+                                ${getStatusText(statusClass)}
+                            </div>
+                        </div>
+                        
+                        <div class="power-type-badge ${powerTypeClass}">
+                            <i class="fas fa-${getPowerTypeIcon(client.power_type)}"></i>
+                            ${getPowerTypeText(client.power_type)}
+                        </div>
+                        
+                        <div class="client-info-grid">
+                            <div class="info-item">
+                                <div class="info-label">连接时间</div>
+                                <div class="info-value">${client.connected_time}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">数据量</div>
+                                <div class="info-value">${client.data_count.toLocaleString()}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">最后更新</div>
+                                <div class="info-value">${client.last_update}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">缓冲区</div>
+                                <div class="info-value">${client.buffer_size || 0}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="client-actions">
+                            <button class="action-btn btn-waveform" 
+                                    onclick="enterWaveform('${client.id}'); event.stopPropagation();"
+                                    ${isOffline ? 'disabled' : ''}>
+                                <i class="fas fa-chart-line"></i>
+                                波形显示
+                            </button>
+                            <button class="action-btn btn-analysis" 
+                                    onclick="enterAnalysis('${client.id}'); event.stopPropagation();"
+                                    ${isOffline ? 'disabled' : ''}>
+                                <i class="fas fa-analytics"></i>
+                                数据分析
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 应用筛选
+        function applyFilters(clients) {
+            const powerTypeFilter = document.getElementById('powerTypeFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            return clients.filter(client => {
+                const powerTypeMatch = !powerTypeFilter || client.power_type === powerTypeFilter;
+                const statusMatch = !statusFilter || client.status === statusFilter;
+                return powerTypeMatch && statusMatch;
+            });
+        }
+
+        // 设置筛选器事件
+        function setupFilters() {
+            document.getElementById('powerTypeFilter').addEventListener('change', renderClientList);
+            document.getElementById('statusFilter').addEventListener('change', renderClientList);
+        }
+
+        // 获取电力类型样式类
+        function getPowerTypeClass(powerType) {
+            switch(powerType) {
+                case 'dc': return 'dc';
+                case 'three_phase': return 'three-phase';
+                case 'single_phase':
+                default: return 'single-phase';
+            }
+        }
+
+        // 获取电力类型图标
+        function getPowerTypeIcon(powerType) {
+            switch(powerType) {
+                case 'dc': return 'battery-half';
+                case 'three_phase': return 'bolt';
+                case 'single_phase':
+                default: return 'plug';
+            }
+        }
+
+        // 获取电力类型文本
+        function getPowerTypeText(powerType) {
+            switch(powerType) {
+                case 'dc': return '直流系统';
+                case 'three_phase': return '三相电系统';
+                case 'single_phase':
+                default: return '单相电系统';
+            }
+        }
+
+        // 获取状态文本
+        function getStatusText(status) {
+            switch(status) {
+                case 'connected': return '在线';
+                case 'offline': return '离线';
+                case 'inactive': return '非活跃';
+                default: return '未知';
+            }
+        }
+
+        // 选择客户端
+        function selectClient(clientId) {
+            selectedClientId = clientId;
+            
+            // 更新卡片选中状态
+            document.querySelectorAll('.client-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            event.currentTarget.classList.add('selected');
+        }
+
+        // 进入波形显示界面
+        function enterWaveform(clientId) {
+            if (!clientId) {
+                alert('请先选择一个客户端');
+                return;
+            }
+            
+            // 保存选择的客户端ID
+            sessionStorage.setItem('selectedClientId', clientId);
+            sessionStorage.setItem('analysisMode', 'waveform');
+            
+            // 跳转到波形显示页面
+            window.location.href = '/waveform-display';
+        }
+
+        // 进入数据分析界面
+        function enterAnalysis(clientId) {
+            if (!clientId) {
+                alert('请先选择一个客户端');
+                return;
+            }
+            
+            // 保存选择的客户端ID
+            sessionStorage.setItem('selectedClientId', clientId);
+            sessionStorage.setItem('analysisMode', 'analysis');
+            
+            // 跳转到数据分析页面
+            window.location.href = '/data-analysis';
+        }
+
+        // 刷新客户端列表
+        function refreshClients() {
+            requestClientList();
+            
+            // 显示刷新动画
+            const refreshBtn = event.currentTarget;
+            const icon = refreshBtn.querySelector('i');
+            icon.classList.add('fa-spin');
+            
+            setTimeout(() => {
+                icon.classList.remove('fa-spin');
+            }, 1000);
+        }
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出系统吗？')) {
+                localStorage.removeItem('userLogin');
+                sessionStorage.removeItem('userLogin');
+                sessionStorage.removeItem('selectedClientId');
+                sessionStorage.removeItem('analysisMode');
+                
+                // 关闭WebSocket连接
+                if (websocket) {
+                    websocket.close();
+                }
+                
+                window.location.href = '/login';
+            }
+        }
+
+        // 定期刷新客户端列表
+        setInterval(() => {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                requestClientList();
+            }
+        }, 10000); // 每10秒刷新一次
+    </script>
+</body>
+</html>

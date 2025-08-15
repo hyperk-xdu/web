@@ -1,3 +1,8 @@
+# ==============================================================================
+# 电力波形分析系统 - 完整整合版本
+# 四界面分离：登录 -> 客户端选择 -> 波形显示 -> 数据分析
+# ==============================================================================
+
 from fastapi import FastAPI, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -19,10 +24,12 @@ import mimetypes
 import numpy as np
 import math
 from scipy import signal
-from scipy.fft import fft, fftfreq
+from scipy.fft import fft, fftfreq, fftshift
+from scipy.stats import skew, kurtosis, normaltest
 import io
 import logging
 from enum import Enum
+from pydantic import BaseModel
 
 # 配置日志
 logging.basicConfig(
@@ -32,7 +39,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 初始化 FastAPI
-app = FastAPI(docs_url="/swagger", redoc_url=None, title="固定相位滚动波形电力系统实时监控平台")
+app = FastAPI(
+    docs_url="/swagger", 
+    redoc_url=None, 
+    title="电力波形分析系统 - 四界面分离版",
+    description="支持登录认证、客户端选择、波形显示、数据分析的完整电力系统",
+    version="7.0.0"
+)
 
 # 跨域配置
 app.add_middleware(
@@ -62,18 +75,311 @@ app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
 templates = Jinja2Templates(directory="templates")
 
 # ==============================================================================
-# 电力系统类型枚举
+# 数据模型和枚举
 # ==============================================================================
 class PowerType(str, Enum):
-    DC = "dc"              # a0 - 直流模式
-    SINGLE_PHASE = "single_phase"  # a1 - 单相模式
-    THREE_PHASE = "three_phase"    # a2 - 三相模式
+    DC = "dc"
+    SINGLE_PHASE = "single_phase"
+    THREE_PHASE = "three_phase"
 
 class ClientStatus(str, Enum):
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     INACTIVE = "inactive"
     REGISTERED = "registered"
+
+class AnalysisRequest(BaseModel):
+    client_id: str
+    analysis_type: str
+    selected_column: str = "voltage"
+    data_points: int = 2048
+    fft_window_size: Optional[int] = 1024
+    window_function: Optional[str] = "hanning"
+    freq_min: Optional[float] = 0
+    freq_max: Optional[float] = 1000
+    log_scale: Optional[bool] = True
+    show_peaks: Optional[bool] = True
+
+# ==============================================================================
+# 高级电力数据分析器 - 新增
+# ==============================================================================
+class AdvancedElectricalAnalyzer:
+    """高级电力数据分析器 - 支持FFT、谐波、统计、功率、质量分析"""
+    
+    def __init__(self):
+        self.sampling_rate = 20000.0  # 20kHz采样率
+        self.fundamental_freq = 50.0  # 基波频率
+        
+    def fft_analysis(self, data: np.ndarray, window_size: int = 1024, 
+                     window_func: str = "hanning", freq_range: tuple = None) -> Dict:
+        """FFT频谱分析"""
+        try:
+            # 数据预处理
+            if len(data) < window_size:
+                padded_data = np.zeros(window_size)
+                padded_data[:len(data)] = data
+                data = padded_data
+            else:
+                data = data[-window_size:]
+            
+            # 应用窗函数
+            if window_func == "hanning":
+                window = np.hanning(window_size)
+            elif window_func == "hamming":
+                window = np.hamming(window_size)
+            elif window_func == "blackman":
+                window = np.blackman(window_size)
+            else:
+                window = np.ones(window_size)
+            
+            windowed_data = data * window
+            
+            # 计算FFT
+            fft_result = fft(windowed_data)
+            frequencies = fftfreq(window_size, 1/self.sampling_rate)
+            
+            # 只取正频率部分
+            positive_freq_mask = frequencies >= 0
+            frequencies = frequencies[positive_freq_mask]
+            fft_result = fft_result[positive_freq_mask]
+            
+            # 频率范围筛选
+            if freq_range:
+                freq_mask = (frequencies >= freq_range[0]) & (frequencies <= freq_range[1])
+                frequencies = frequencies[freq_mask]
+                fft_result = fft_result[freq_mask]
+            
+            # 计算幅值和相位
+            magnitude = np.abs(fft_result)
+            phase = np.angle(fft_result)
+            
+            # 检测峰值
+            peaks = self._detect_peaks(frequencies, magnitude)
+            
+            return {
+                "frequencies": frequencies.tolist(),
+                "spectrum": [{"real": float(val.real), "imag": float(val.imag)} for val in fft_result],
+                "magnitude": magnitude.tolist(),
+                "phases": phase.tolist(),
+                "peaks": peaks,
+                "window_function": window_func,
+                "window_size": window_size
+            }
+            
+        except Exception as e:
+            logger.error(f"FFT analysis error: {e}")
+            return {"error": str(e)}
+    
+    def harmonic_analysis(self, data: np.ndarray, fundamental_freq: float = 50.0, 
+                         max_harmonic: int = 20) -> Dict:
+        """谐波分析"""
+        try:
+            fft_result = self.fft_analysis(data, window_size=len(data) if len(data) <= 4096 else 4096)
+            
+            if "error" in fft_result:
+                return fft_result
+            
+            frequencies = np.array(fft_result["frequencies"])
+            magnitude = np.array(fft_result["magnitude"])
+            
+            # 寻找基波和各次谐波
+            harmonics = []
+            
+            for n in range(1, max_harmonic + 1):
+                target_freq = n * fundamental_freq
+                freq_diff = np.abs(frequencies - target_freq)
+                min_idx = np.argmin(freq_diff)
+                
+                if freq_diff[min_idx] < fundamental_freq * 0.1:
+                    harmonic_magnitude = magnitude[min_idx]
+                    harmonics.append({
+                        "order": n,
+                        "frequency": float(frequencies[min_idx]),
+                        "magnitude": float(harmonic_magnitude),
+                        "percentage": float(harmonic_magnitude / magnitude[0] * 100) if magnitude[0] > 0 else 0
+                    })
+            
+            # 计算THD
+            if len(harmonics) > 1:
+                fundamental_mag = harmonics[0]["magnitude"]
+                harmonic_sum = sum(h["magnitude"]**2 for h in harmonics[1:])
+                thd = math.sqrt(harmonic_sum) / fundamental_mag * 100 if fundamental_mag > 0 else 0
+            else:
+                thd = 0
+            
+            return {
+                "fundamental_freq": fundamental_freq,
+                "harmonics": harmonics,
+                "thd": thd,
+                "max_harmonic_order": max_harmonic
+            }
+            
+        except Exception as e:
+            logger.error(f"Harmonic analysis error: {e}")
+            return {"error": str(e)}
+    
+    def statistical_analysis(self, data: np.ndarray) -> Dict:
+        """统计分析"""
+        try:
+            stats = {
+                "mean": float(np.mean(data)),
+                "std": float(np.std(data)),
+                "variance": float(np.var(data)),
+                "min": float(np.min(data)),
+                "max": float(np.max(data)),
+                "median": float(np.median(data)),
+                "skewness": float(skew(data)),
+                "kurtosis": float(kurtosis(data)),
+                "rms": float(np.sqrt(np.mean(data**2))),
+                "peak_factor": float(np.max(np.abs(data)) / np.sqrt(np.mean(data**2))) if np.sqrt(np.mean(data**2)) > 0 else 0
+            }
+            
+            # 分位数
+            percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99]
+            stats["percentiles"] = {
+                f"p{p}": float(np.percentile(data, p)) for p in percentiles
+            }
+            
+            # 直方图数据
+            hist_counts, hist_bins = np.histogram(data, bins=50)
+            stats["histogram"] = {
+                "counts": hist_counts.tolist(),
+                "bins": hist_bins.tolist()
+            }
+            
+            # 正态性检验
+            try:
+                stat, p_value = normaltest(data)
+                stats["normality_test"] = {
+                    "statistic": float(stat),
+                    "p_value": float(p_value),
+                    "is_normal": p_value > 0.05
+                }
+            except:
+                stats["normality_test"] = None
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Statistical analysis error: {e}")
+            return {"error": str(e)}
+    
+    def power_analysis(self, voltage_data: np.ndarray, current_data: np.ndarray) -> Dict:
+        """功率分析"""
+        try:
+            if len(voltage_data) != len(current_data):
+                min_len = min(len(voltage_data), len(current_data))
+                voltage_data = voltage_data[:min_len]
+                current_data = current_data[:min_len]
+            
+            # 计算RMS值
+            v_rms = np.sqrt(np.mean(voltage_data**2))
+            i_rms = np.sqrt(np.mean(current_data**2))
+            
+            # 瞬时功率
+            instantaneous_power = voltage_data * current_data
+            
+            # 有功功率
+            active_power = np.mean(instantaneous_power)
+            
+            # 视在功率
+            apparent_power = v_rms * i_rms
+            
+            # 无功功率
+            reactive_power = math.sqrt(max(0, apparent_power**2 - active_power**2))
+            
+            # 功率因数
+            power_factor = active_power / apparent_power if apparent_power > 0 else 0
+            
+            # 功率时间序列
+            window_size = min(100, len(instantaneous_power) // 10)
+            if window_size > 0:
+                power_time_series = {
+                    "active": [{"x": i, "y": float(np.mean(instantaneous_power[i:i+window_size]))} 
+                              for i in range(0, len(instantaneous_power)-window_size, window_size)],
+                    "reactive": [{"x": i, "y": float(reactive_power * 0.8 + 0.2 * np.random.randn())} 
+                                for i in range(0, len(instantaneous_power)-window_size, window_size)]
+                }
+            else:
+                power_time_series = {"active": [], "reactive": []}
+            
+            return {
+                "voltage_rms": v_rms,
+                "current_rms": i_rms,
+                "average_active_power": active_power,
+                "average_reactive_power": reactive_power,
+                "apparent_power": apparent_power,
+                "power_factor": power_factor,
+                "power_time_series": power_time_series
+            }
+            
+        except Exception as e:
+            logger.error(f"Power analysis error: {e}")
+            return {"error": str(e)}
+    
+    def power_quality_analysis(self, data: np.ndarray, nominal_voltage: float = 220.0) -> Dict:
+        """电能质量分析"""
+        try:
+            rms_value = np.sqrt(np.mean(data**2))
+            voltage_deviation = (rms_value - nominal_voltage) / nominal_voltage * 100
+            
+            # 频率分析
+            fft_result = self.fft_analysis(data)
+            if "error" not in fft_result:
+                frequencies = np.array(fft_result["frequencies"])
+                magnitude = np.array(fft_result["magnitude"])
+                max_idx = np.argmax(magnitude)
+                dominant_freq = frequencies[max_idx]
+                frequency_deviation = dominant_freq - self.fundamental_freq
+            else:
+                frequency_deviation = 0
+                dominant_freq = self.fundamental_freq
+            
+            # 电压不平衡度
+            voltage_unbalance = np.std(data) / np.mean(np.abs(data)) * 100 if np.mean(np.abs(data)) > 0 else 0
+            
+            # 闪变值
+            analytic_signal = signal.hilbert(data)
+            envelope = np.abs(analytic_signal)
+            envelope_variation = np.std(envelope) / np.mean(envelope) if np.mean(envelope) > 0 else 0
+            flicker = envelope_variation * 100
+            
+            return {
+                "voltage_deviation": voltage_deviation,
+                "frequency_deviation": frequency_deviation,
+                "voltage_unbalance": voltage_unbalance,
+                "flicker": flicker,
+                "rms_value": rms_value,
+                "dominant_frequency": dominant_freq
+            }
+            
+        except Exception as e:
+            logger.error(f"Power quality analysis error: {e}")
+            return {"error": str(e)}
+    
+    def _detect_peaks(self, frequencies: np.ndarray, magnitude: np.ndarray, 
+                     prominence: float = None) -> List[Dict]:
+        """检测频谱峰值"""
+        try:
+            if prominence is None:
+                prominence = np.max(magnitude) * 0.1
+            
+            peaks, properties = signal.find_peaks(magnitude, prominence=prominence, distance=5)
+            
+            peak_list = []
+            for i, peak_idx in enumerate(peaks):
+                peak_list.append({
+                    "frequency": float(frequencies[peak_idx]),
+                    "magnitude": float(magnitude[peak_idx]),
+                    "prominence": float(properties["prominences"][i])
+                })
+            
+            peak_list.sort(key=lambda x: x["magnitude"], reverse=True)
+            return peak_list[:10]
+            
+        except Exception as e:
+            logger.error(f"Peak detection error: {e}")
+            return []
 
 # ==============================================================================
 # 固定相位滚动波形生成器类 - 完全修复版本
@@ -1490,7 +1796,10 @@ class OptimizedWaveAnalyzer:
             logger.error(f"Signal analysis error: {e}")
             return {"error": {"title": "分析错误", "value": str(e), "unit": "", "icon": "fas fa-exclamation-triangle"}}
 
-# 创建管理器和分析器实例
+# ==============================================================================
+# 创建实例
+# ==============================================================================
+advanced_analyzer = AdvancedElectricalAnalyzer()
 manager = OptimizedPowerConnectionManager()
 analyzer = OptimizedWaveAnalyzer()
 
@@ -1499,9 +1808,12 @@ analyzer = OptimizedWaveAnalyzer()
 # ==============================================================================
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    """WebSocket连接端点 - 完整实现"""
     client_type = "web" if client_id.startswith('web_') else "data_source"
     
+    # 使用manager实例进行连接
     await manager.connect(client_id, websocket, client_type)
+    
     try:
         while True:
             data = await websocket.receive_text()
@@ -1552,22 +1864,167 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     except WebSocketDisconnect:
         manager.disconnect(client_id)
         logger.info(f"Client {client_id} disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error for {client_id}: {e}")
+        manager.disconnect(client_id)
 
 # ==============================================================================
-# HTTP路由
+# 路由定义 - 四个主要界面
 # ==============================================================================
+
 @app.get("/", include_in_schema=False)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "active_page": "tasks"})
+    """重定向到登录页面"""
+    return templates.TemplateResponse("login.html", {"request": request})
 
-@app.get("/wave", response_class=HTMLResponse)
-def wave_page(request: Request):
-    """修正的固定相位滚动波形电力分析主页面"""
-    return templates.TemplateResponse("wave.html", {
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    """用户登录页面"""
+    return templates.TemplateResponse("login.html", {
         "request": request,
-        "active_page": "wave",
-        "update_time": datetime.now().strftime("%Y-%m-%d %H:%M")
+        "active_page": "login"
     })
+
+@app.get("/client-selection", response_class=HTMLResponse)  
+def client_selection_page(request: Request):
+    """客户端选择页面"""
+    return templates.TemplateResponse("client_selection.html", {
+        "request": request,
+        "active_page": "client_selection"
+    })
+
+@app.get("/waveform-display", response_class=HTMLResponse)
+def waveform_display_page(request: Request):
+    """波形显示页面"""
+    return templates.TemplateResponse("waveform_display.html", {
+        "request": request,
+        "active_page": "waveform_display"
+    })
+
+@app.get("/data-analysis", response_class=HTMLResponse)
+def data_analysis_page(request: Request):
+    """数据综合分析页面"""
+    return templates.TemplateResponse("data_analysis.html", {
+        "request": request,
+        "active_page": "data_analysis"
+    })
+
+# ==============================================================================
+# API端点 - 认证和分析
+# ==============================================================================
+
+@app.post("/api/login")
+async def login_api(username: str = Form(...), password: str = Form(...)):
+    """用户登录API"""
+    try:
+        valid_users = {
+            'admin': 'power2024',
+            'engineer': 'electric123',
+            'operator': 'monitor456', 
+            'demo': 'demo'
+        }
+        
+        if username in valid_users and valid_users[username] == password:
+            return {
+                "status": "success",
+                "message": "登录成功",
+                "user": {
+                    "username": username,
+                    "role": get_role_by_username(username),
+                    "login_time": datetime.now().isoformat()
+                }
+            }
+        else:
+            return JSONResponse(
+                status_code=401,
+                content={"status": "error", "message": "用户名或密码错误"}
+            )
+            
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": "登录系统错误"}
+        )
+
+def get_role_by_username(username: str) -> str:
+    """根据用户名获取角色"""
+    roles = {
+        'admin': '系统管理员',
+        'engineer': '电力工程师',
+        'operator': '设备操作员',
+        'demo': '演示用户'
+    }
+    return roles.get(username, '用户')
+
+@app.post("/api/advanced_analysis")
+async def advanced_analysis(request: AnalysisRequest):
+    """高级数据分析API"""
+    try:
+        client_id = request.client_id
+        analysis_type = request.analysis_type
+        
+        # 生成模拟数据用于演示（实际使用时替换为真实数据）
+        data = generate_mock_data(request.data_points, client_id)
+        
+        # 根据分析类型执行相应分析
+        analysis_result = {}
+        statistics = {}
+        
+        if analysis_type == "fft":
+            analysis_result["fft_result"] = advanced_analyzer.fft_analysis(
+                data,
+                window_size=request.fft_window_size,
+                window_func=request.window_function,
+                freq_range=(request.freq_min, request.freq_max) if request.freq_min is not None else None
+            )
+            statistics = advanced_analyzer.statistical_analysis(data)
+            
+        elif analysis_type == "harmonic":
+            analysis_result["harmonic_result"] = advanced_analyzer.harmonic_analysis(data)
+            statistics = advanced_analyzer.statistical_analysis(data)
+            
+        elif analysis_type == "statistics":
+            analysis_result["statistics_result"] = advanced_analyzer.statistical_analysis(data)
+            statistics = analysis_result["statistics_result"]
+            
+        elif analysis_type == "power":
+            voltage_data = data
+            current_data = generate_mock_current_data(len(data))
+            analysis_result["power_result"] = advanced_analyzer.power_analysis(voltage_data, current_data)
+            statistics = advanced_analyzer.statistical_analysis(data)
+            
+        elif analysis_type == "quality":
+            analysis_result["quality_result"] = advanced_analyzer.power_quality_analysis(data)
+            statistics = advanced_analyzer.statistical_analysis(data)
+            
+        elif analysis_type == "trend":
+            analysis_result["fft_result"] = advanced_analyzer.fft_analysis(data)
+            analysis_result["trend_data"] = generate_trend_data(data)
+            statistics = advanced_analyzer.statistical_analysis(data)
+        
+        # 格式化统计信息
+        formatted_stats = format_statistics_for_display(statistics, analysis_type)
+        
+        return {
+            "status": "success",
+            "message": f"{analysis_type}分析完成",
+            "data": {
+                **analysis_result,
+                "statistics": formatted_stats,
+                "client_id": client_id,
+                "analysis_type": analysis_type,
+                "analysis_time": datetime.now().isoformat(),
+                "data_points": len(data)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Advanced analysis error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"分析过程中发生错误: {str(e)}"}
+        )
 
 # ==============================================================================
 # 数据接收接口
@@ -1823,19 +2280,24 @@ async def health_check():
         "active_connections": len(manager.active_connections),
         "data_source_clients": len(manager.data_source_clients),
         "web_clients": len(manager.web_clients),
-        "version": "6.1.0 - Corrected Fixed Phase Scrolling Waveform System",
+        "version": "7.0.0 - 四界面分离版本",
         "features": [
+            "🔐 用户登录认证系统",
+            "🖥️ 客户端选择界面",
+            "📊 实时波形显示界面",
+            "🔬 数据综合分析界面",
+            "🌊 FFT频谱分析",
+            "🎯 谐波检测分析", 
+            "📈 统计数据分析",
+            "⚡ 功率质量分析",
+            "🎛️ 示波器模式",
+            "💾 分析结果导出",
             "🎯 修正的固定相位系统 - 彻底解决波形生成问题",
             "📐 连续位置相位计算 - (连续位置 % 400) / 400 * 2π",
             "📊 完整波形值存储 - 直接计算并存储正弦波形值",
             "🔄 真正的滚动更新 - 自然的示波器效果",
             "⚡ 支持a0/a1/a2工作模式自动识别",
-            "🔌 直流/单相/三相电力系统完整支持",
-            "🎛️ 20kHz采样率，每周期400点精确时间轴",
-            "💓 客户端心跳监控和自动重连",
-            "📈 实时数据分析和修正的固定相位波形生成",
-            "🌊 三相波形同步显示，相位关系保持",
-            "🛠️ 增强错误处理和任务自动恢复"
+            "🔌 直流/单相/三相电力系统完整支持"
         ],
         "phase_system": {
             "type": "fixed_position_based_corrected",
@@ -1861,21 +2323,19 @@ async def system_status():
     return {
         "server_time": datetime.now().isoformat(),
         "uptime": "运行中",
-        "version": "6.1.0 - Corrected Fixed Phase Scrolling Waveform System",
+        "version": "7.0.0 - 四界面分离版本",
         "phase_system": "fixed_position_based_corrected",
         "features": [
-            "🎯 修正的固定相位系统 - 彻底解决波形生成问题",
-            "📐 连续位置相位计算：(连续位置 % 400点) / 400 * 2π",
-            "📊 完整波形值存储：直接计算并存储正弦波形值而非振幅",
-            "🔄 真正的滚动更新：从右往左移动，模拟真实示波器",
-            "⚡ 支持a0(直流)/a1(单相)/a2(三相)工作模式",
-            "🔌 直流/单相/三相电力系统完整支持",
-            "🎛️ 20kHz采样率，每周期精确400个数据点",
-            "💓 WebSocket实时通信和客户端健康监控",
-            "📈 数据流处理、CSV存储和实时分析",
-            "🌊 三相波形同步显示，相位关系严格保持：A:0°, B:-120°, C:-240°",
-            "🛠️ 增强错误处理、异常恢复和任务自动重启",
-            "🔧 固定相位缓冲区：最大2000点窗口，循环使用"
+            "🔐 用户登录认证系统",
+            "🖥️ 客户端选择界面",
+            "📊 实时波形显示界面",
+            "🔬 数据综合分析界面",
+            "🌊 FFT频谱分析",
+            "🎯 谐波检测分析", 
+            "📈 统计数据分析",
+            "⚡ 功率质量分析",
+            "🎛️ 示波器模式",
+            "💾 分析结果导出"
         ],
         "connections": {
             "total": len(manager.active_connections),
@@ -1889,21 +2349,6 @@ async def system_status():
             "active_scroll_clients": len(manager.scroll_update_tasks),
             "scroll_client_list": list(manager.scroll_update_tasks.keys()),
             "task_monitoring": manager.task_monitoring
-        },
-        "corrected_fixed_phase_config": {
-            "sampling_rate": "20 kHz",
-            "points_per_cycle": 400,
-            "base_frequency": "50 Hz",
-            "time_precision": "50 μs per point",
-            "phase_calculation": "continuous_position_based: (continuous_pos % 400) / 400 * 2π",
-            "window_max_size": 2000,
-            "waveform_storage": "complete_calculated_sine_values",
-            "scroll_direction": "right_to_left",
-            "phase_stability": "完全固定，基于连续位置，无累积误差",
-            "three_phase_offset": "A:0°, B:-120°, C:-240°",
-            "power_factor_simulation": "-30° (感性负载)",
-            "error_recovery": "自动任务重启机制",
-            "key_improvement": "直接计算完整波形值而非仅存振幅"
         }
     }
 
@@ -2200,15 +2645,130 @@ async def get_data_source_clients():
             content={"status": "error", "message": f"获取客户端列表失败: {str(e)}"}
         )
 
+# ==============================================================================
+# 辅助函数
+# ==============================================================================
+
+def generate_mock_data(num_points: int, client_id: str) -> np.ndarray:
+    """生成模拟数据"""
+    t = np.linspace(0, num_points/20000, num_points)
+    
+    # 基波信号
+    fundamental = 220 * np.sqrt(2) * np.sin(2 * np.pi * 50 * t)
+    
+    # 添加谐波
+    harmonic3 = 15 * np.sin(2 * np.pi * 150 * t + np.pi/3)
+    harmonic5 = 8 * np.sin(2 * np.pi * 250 * t + np.pi/6)
+    harmonic7 = 5 * np.sin(2 * np.pi * 350 * t + np.pi/4)
+    
+    # 添加噪声
+    noise = np.random.normal(0, 5, num_points)
+    
+    # 组合信号
+    signal = fundamental + harmonic3 + harmonic5 + harmonic7 + noise
+    
+    if "test" in client_id.lower():
+        signal += 10 * np.sin(2 * np.pi * 25 * t)
+    
+    return signal
+
+def generate_mock_current_data(num_points: int) -> np.ndarray:
+    """生成模拟电流数据"""
+    t = np.linspace(0, num_points/20000, num_points)
+    current = 10 * np.sqrt(2) * np.sin(2 * np.pi * 50 * t - np.pi/6)
+    noise = np.random.normal(0, 0.2, num_points)
+    return current + noise
+
+def generate_trend_data(data: np.ndarray) -> Dict:
+    """生成趋势数据"""
+    window_size = min(100, len(data) // 10)
+    
+    if window_size > 0:
+        trend = np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+        trend_points = [{"x": i, "y": float(trend[i])} for i in range(len(trend))]
+    else:
+        trend_points = []
+    
+    return {
+        "trend_line": trend_points,
+        "trend_slope": float(np.polyfit(range(len(trend_points)), [p["y"] for p in trend_points], 1)[0]) if trend_points else 0
+    }
+
+def format_statistics_for_display(stats: Dict, analysis_type: str) -> Dict:
+    """格式化统计信息用于显示"""
+    if not stats or "error" in stats:
+        return {}
+    
+    formatted = {}
+    
+    if "mean" in stats:
+        formatted["mean"] = {
+            "title": "平均值",
+            "value": f"{stats['mean']:.3f}",
+            "unit": get_unit_by_analysis_type(analysis_type),
+            "icon": "fas fa-calculator"
+        }
+    
+    if "std" in stats:
+        formatted["std"] = {
+            "title": "标准差",
+            "value": f"{stats['std']:.3f}",
+            "unit": get_unit_by_analysis_type(analysis_type),
+            "icon": "fas fa-chart-line"
+        }
+    
+    if "rms" in stats:
+        formatted["rms"] = {
+            "title": "RMS有效值",
+            "value": f"{stats['rms']:.3f}",
+            "unit": get_unit_by_analysis_type(analysis_type),
+            "icon": "fas fa-bolt"
+        }
+    
+    if "peak_factor" in stats:
+        formatted["peak_factor"] = {
+            "title": "峰值因数",
+            "value": f"{stats['peak_factor']:.3f}",
+            "unit": "",
+            "icon": "fas fa-mountain"
+        }
+    
+    if "min" in stats and "max" in stats:
+        formatted["range"] = {
+            "title": "数值范围",
+            "value": f"{stats['min']:.2f} ~ {stats['max']:.2f}",
+            "unit": get_unit_by_analysis_type(analysis_type),
+            "icon": "fas fa-arrows-alt-h"
+        }
+    
+    return formatted
+
+def get_unit_by_analysis_type(analysis_type: str) -> str:
+    """根据分析类型获取单位"""
+    units = {
+        "fft": "V",
+        "harmonic": "V",
+        "statistics": "V", 
+        "power": "W",
+        "quality": "V",
+        "trend": "V"
+    }
+    return units.get(analysis_type, "")
+
+# ==============================================================================
+# 启动应用
+# ==============================================================================
+
 if __name__ == "__main__":
     import uvicorn
     
-    logger.info("🚀 启动修正的固定相位滚动波形电力系统监控平台")
+    logger.info("🚀 启动电力波形分析系统 - 四界面分离版本")
+    logger.info("🔐 登录页面 -> 🖥️ 客户端选择 -> 📊 波形显示 -> 🔬 数据分析")
+    logger.info("✨ 新增功能：FFT频谱分析、谐波检测、电能质量评估")
+    logger.info("🎯 修正的固定相位系统：彻底解决波形生成问题")
     logger.info("📐 相位计算公式: (连续位置 % 400) / 400 * 2π")
     logger.info("📊 波形存储: 完整计算的正弦波形值，从右往左滚动更新")
-    logger.info("🔄 滚动方向: 右→左，模拟真实示波器")
     logger.info("⚡ 支持模式: a0(直流) / a1(单相) / a2(三相)")
-    logger.info("🎛️ 采样配置: 20kHz, 400点/周期, 最大2000点窗口")
-    logger.info("✅ 关键修正: 直接计算并存储完整波形值而非仅振幅")
+    logger.info("🌐 访问地址: http://localhost:8000")
     
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
