@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电力波形分析系统 - 实时波形显示</title>
+    <title>电力波形分析系统 - RMS波形显示</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -24,11 +24,6 @@
             --phase-a-color: #e74c3c;
             --phase-b-color: #f39c12;
             --phase-c-color: #3498db;
-            
-            /* 示波器样式 */
-            --oscilloscope-bg: #001122;
-            --oscilloscope-grid: #003366;
-            --oscilloscope-text: #00ff88;
         }
         
         * {
@@ -157,27 +152,6 @@
             height: calc(100vh - 40px);
             max-height: calc(100vh - 40px);
             overflow-y: auto;
-            overflow-x: hidden;
-            scrollbar-width: thin;
-            scrollbar-color: var(--primary-color) #f1f1f1;
-        }
-        
-        .param-bar::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .param-bar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        .param-bar::-webkit-scrollbar-thumb {
-            background: var(--primary-color);
-            border-radius: 4px;
-        }
-        
-        .param-bar::-webkit-scrollbar-thumb:hover {
-            background: var(--accent-color);
         }
         
         .param-bar h4 {
@@ -203,10 +177,6 @@
             position: sticky;
             top: 60px;
             z-index: 5;
-            margin-left: -5px;
-            margin-right: -5px;
-            padding-left: 5px;
-            padding-right: 5px;
         }
         
         .param-group {
@@ -220,51 +190,7 @@
             margin-bottom: 15px;
         }
         
-        .work-mode-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 8px;
-        }
-        
-        .work-mode-indicator.dc {
-            background: #f3e5f5;
-            color: #7b1fa2;
-            border: 1px solid #ce93d8;
-        }
-        
-        .work-mode-indicator.single-phase {
-            background: #e3f2fd;
-            color: #1976d2;
-            border: 1px solid #bbdefb;
-        }
-        
-        .work-mode-indicator.three-phase {
-            background: #fff3e0;
-            color: #f57c00;
-            border: 1px solid #ffcc02;
-        }
-        
-        .phase-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 5px;
-        }
-        
-        .phase-a { background-color: var(--phase-a-color); }
-        .phase-b { background-color: var(--phase-b-color); }
-        .phase-c { background-color: var(--phase-c-color); }
-        .single-phase { background-color: var(--single-phase-color); }
-        .dc { background-color: var(--dc-color); }
-        
-        /* 示波器控制面板 */
-        .oscilloscope-controls {
+        .batch-info-panel {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 12px;
             padding: 15px;
@@ -274,109 +200,48 @@
             transition: var(--transition);
         }
         
-        .oscilloscope-controls.active {
+        .batch-info-panel.active {
             border-color: var(--success-color);
             box-shadow: 0 0 20px rgba(39, 174, 96, 0.3);
         }
         
-        .oscilloscope-toggle-wrapper {
+        .batch-stat {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            margin-bottom: 15px;
-        }
-        
-        .oscilloscope-toggle {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 30px;
-        }
-        
-        .oscilloscope-toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .oscilloscope-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(255,255,255,0.3);
-            transition: .4s;
-            border-radius: 30px;
-            border: 2px solid rgba(255,255,255,0.5);
-        }
-        
-        .oscilloscope-slider:before {
-            position: absolute;
-            content: "";
-            height: 22px;
-            width: 22px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        input:checked + .oscilloscope-slider {
-            background-color: var(--success-color);
-            border-color: var(--success-color);
-        }
-        
-        input:checked + .oscilloscope-slider:before {
-            transform: translateX(30px);
-        }
-        
-        .oscilloscope-params {
-            display: none;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-        }
-        
-        .oscilloscope-params.active {
-            display: block;
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        .speed-control {
-            margin-bottom: 15px;
-        }
-        
-        .speed-control label {
-            color: white;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .speed-indicator {
-            display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.8);
-            margin-top: 5px;
+            margin-bottom: 8px;
+            font-size: 14px;
         }
         
-        .speed-dot {
-            width: 8px;
-            height: 8px;
-            background: #00ff88;
-            border-radius: 50%;
-            animation: oscilloscope-pulse 1s infinite;
+        .batch-stat:last-child {
+            margin-bottom: 0;
         }
         
-        @keyframes oscilloscope-pulse {
-            0%, 100% { opacity: 0.5; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.3); }
+        .batch-label {
+            opacity: 0.8;
+        }
+        
+        .batch-value {
+            font-weight: bold;
+            color: #00ff88;
+        }
+        
+        .rms-display {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .rms-value {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .rms-value:last-child {
+            margin-bottom: 0;
         }
         
         .main-content {
@@ -497,9 +362,9 @@
             font-size: 1.2rem;
         }
         
-        .client-icon.dc { background: var(--dc-color); }
-        .client-icon.single-phase { background: var(--single-phase-color); }
-        .client-icon.three-phase { background: var(--phase-a-color); }
+        .client-icon.batch-sensor {
+            background: var(--single-phase-color);
+        }
         
         .chart-container {
             background: white;
@@ -513,16 +378,6 @@
             width: 100%;
             min-width: 0;
             transition: all 0.3s ease;
-        }
-        
-        .chart-container.oscilloscope-mode {
-            background: var(--oscilloscope-bg);
-            border: 2px solid var(--oscilloscope-grid);
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
-        }
-        
-        .chart-container.oscilloscope-mode .chart-title {
-            color: var(--oscilloscope-text);
         }
         
         .chart-container canvas {
@@ -550,29 +405,17 @@
             flex-wrap: wrap;
         }
         
-        .phase-toggle {
-            display: flex;
-            gap: 5px;
+        .rms-info-badge {
+            display: inline-flex;
             align-items: center;
-        }
-        
-        .phase-checkbox {
-            margin-right: 5px;
-        }
-        
-        .oscilloscope-info {
-            display: none;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid var(--oscilloscope-text);
-            border-radius: 4px;
-            padding: 8px 12px;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 12px;
             font-size: 12px;
-            color: var(--oscilloscope-text);
-            font-family: 'Courier New', monospace;
-        }
-        
-        .chart-container.oscilloscope-mode .oscilloscope-info {
-            display: block;
+            font-weight: bold;
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
         }
         
         .btn-primary {
@@ -692,12 +535,106 @@
             50% { opacity: 1; }
         }
         
-        /* 示波器网格效果 */
-        .chart-container.oscilloscope-mode canvas {
-            background-image: 
-                linear-gradient(rgba(0, 51, 102, 0.3) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 51, 102, 0.3) 1px, transparent 1px);
-            background-size: 20px 20px;
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .debug-title {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+        
+        /* 平滑滚动模式新增样式 */
+        .smooth-scroll-controls {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            color: white;
+            border: 2px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .smooth-scroll-controls.active {
+            border-color: var(--success-color);
+            box-shadow: 0 0 20px rgba(39, 174, 96, 0.3);
+        }
+        
+        .scroll-toggle-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .scroll-toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .scroll-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .scroll-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.3);
+            transition: .4s;
+            border-radius: 30px;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+        
+        .scroll-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        input:checked + .scroll-slider {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+        }
+        
+        input:checked + .scroll-slider:before {
+            transform: translateX(30px);
+        }
+        
+        .scroll-params {
+            display: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+        
+        .scroll-params.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
         }
         
         /* 响应式设计 */
@@ -749,7 +686,7 @@
 </head>
 <body>
     <div class="transmission-status" id="transmissionStatus">
-        数据传输中...
+        批量数据传输中...
     </div>
 
     <div class="app-container" id="appContainer">
@@ -764,94 +701,94 @@
                     <i class="fas fa-arrow-left"></i> 返回客户端选择
                 </div>
                 <div class="menu-option active">
-                    <i class="fas fa-chart-line"></i> 实时波形显示
+                    <i class="fas fa-chart-line"></i> RMS波形显示
                 </div>
                 <div class="menu-option" onclick="goToDataAnalysis()">
                     <i class="fas fa-analytics"></i> 数据综合分析
                 </div>
-                <div class="menu-option">
-                    <i class="fas fa-desktop"></i> 示波器模式
+                <div class="menu-option" onclick="downloadClientCSV()">
+                    <i class="fas fa-download"></i> 下载CSV数据
                 </div>
-                <div class="menu-option">
-                    <i class="fas fa-cog"></i> 系统设置
+                <div class="menu-option" onclick="toggleDebug()">
+                    <i class="fas fa-bug"></i> 调试模式
                 </div>
             </div>
         </div>
         
         <div class="param-bar">
             <h4 class="mb-4" style="color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 10px;">
-                <i class="fas fa-bolt me-2"></i>电力系统波形参数
+                <i class="fas fa-bolt me-2"></i>RMS波形参数
             </h4>
             
             <form id="analysisForm">
-                <!-- 示波器控制面板 -->
+                <!-- 平滑滚动控制面板 -->
                 <div class="param-group">
-                    <div class="section-title">示波器控制</div>
-                    <div class="oscilloscope-controls" id="oscilloscopeControls">
-                        <div class="oscilloscope-toggle-wrapper">
+                    <div class="section-title">平滑滚动控制</div>
+                    <div class="smooth-scroll-controls" id="smoothScrollControls">
+                        <div class="scroll-toggle-wrapper">
                             <div>
-                                <strong><i class="fas fa-desktop me-2"></i>示波器模式</strong>
+                                <strong><i class="fas fa-water me-2"></i>平滑滚动模式</strong>
                                 <div style="font-size: 12px; opacity: 0.8; margin-top: 3px;">
-                                    启用实时滚动波形显示
+                                    避免整体重绘，平滑更新波形
                                 </div>
                             </div>
-                            <label class="oscilloscope-toggle">
-                                <input type="checkbox" id="oscilloscopeMode">
-                                <span class="oscilloscope-slider"></span>
+                            <label class="scroll-toggle">
+                                <input type="checkbox" id="smoothScrollMode" checked>
+                                <span class="scroll-slider"></span>
                             </label>
                         </div>
                         
-                        <div class="oscilloscope-params" id="oscilloscopeParams">
+                        <div class="scroll-params active" id="scrollParams">
                             <div class="speed-control">
-                                <label class="form-label">
-                                    更新速度: <span id="scrollSpeedValue">50</span> ms/点
+                                <label class="form-label" style="color: white; font-size: 13px; font-weight: 500;">
+                                    滚动窗口大小: <span id="scrollWindowValue">500</span> 点
                                 </label>
-                                <input type="range" class="form-range" id="scrollSpeedSlider" 
-                                       min="10" max="200" value="50" step="10">
-                                <div class="speed-indicator">
-                                    <div class="speed-dot"></div>
-                                    <span id="speedText">中等速度</span>
-                                </div>
-                            </div>
-                            
-                            <div class="speed-control">
-                                <label class="form-label">
-                                    缓冲区大小: <span id="bufferSizeValue">1000</span> 点
-                                </label>
-                                <input type="range" class="form-range" id="bufferSizeSlider" 
-                                       min="200" max="2000" value="1000" step="100">
+                                <input type="range" class="form-range" id="scrollWindowSlider" 
+                                       min="200" max="1000" value="500" step="50">
                                 <small class="form-text" style="color: rgba(255,255,255,0.7); font-size: 11px;">
-                                    控制屏幕显示的数据点数量
+                                    控制滚动窗口中显示的数据点数量
                                 </small>
                             </div>
                             
                             <div class="speed-control">
-                                <label class="form-label">
-                                    更新频率: <span id="updateRateValue">10</span> 点/次
+                                <label class="form-label" style="color: white; font-size: 13px; font-weight: 500;">
+                                    更新间隔: <span id="updateIntervalValue">100</span> ms
                                 </label>
-                                <input type="range" class="form-range" id="updateRateSlider"
-                                       min="1" max="50" value="10" step="1">
+                                <input type="range" class="form-range" id="updateIntervalSlider"
+                                       min="50" max="500" value="100" step="25">
                                 <small class="form-text" style="color: rgba(255,255,255,0.7); font-size: 11px;">
-                                    每次更新添加的新数据点数
+                                    控制波形更新的频率
                                 </small>
                             </div>
-
-                            <div class="speed-control">
-                                <label class="form-label">
-                                    背景颜色
-                                </label>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <input type="color" class="form-control form-control-color"
-                                           id="oscilloscopeBgColor" value="#001122"
-                                           style="width: 50px; height: 35px; border: 2px solid rgba(255,255,255,0.3);">
-                                    <button type="button" class="btn btn-sm" id="resetBgColorBtn"
-                                            style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); font-size: 11px;">
-                                        重置
-                                    </button>
-                                </div>
-                                <small class="form-text" style="color: rgba(255,255,255,0.7); font-size: 11px;">
-                                    自定义示波器背景颜色
-                                </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 批量数据信息面板 -->
+                <div class="param-group">
+                    <div class="section-title">批量数据状态</div>
+                    <div class="batch-info-panel" id="batchInfoPanel">
+                        <div class="batch-stat">
+                            <span class="batch-label">数据模式</span>
+                            <span class="batch-value">400点批量</span>
+                        </div>
+                        <div class="batch-stat">
+                            <span class="batch-label">批次计数</span>
+                            <span class="batch-value" id="batchCount">0</span>
+                        </div>
+                        <div class="batch-stat">
+                            <span class="batch-label">最后更新</span>
+                            <span class="batch-value" id="lastUpdate">等待数据</span>
+                        </div>
+                        
+                        <div class="rms-display" id="rmsDisplay">
+                            <div class="rms-value">
+                                <span>电压RMS:</span>
+                                <span id="voltageRMS">0.000V</span>
+                            </div>
+                            <div class="rms-value">
+                                <span>电流RMS:</span>
+                                <span id="currentRMS">0.000A</span>
                             </div>
                         </div>
                     </div>
@@ -867,58 +804,27 @@
                         </select>
                         <small class="form-text text-muted">选择要重点分析的参数</small>
                     </div>
-                    
-                    <div class="mb-3" id="workModeDisplay" style="display: none;">
-                        <label class="form-label">当前工作模式</label>
-                        <div id="workModeIndicator" class="work-mode-indicator">
-                            <i class="fas fa-question-circle"></i>
-                            <span>未检测</span>
-                        </div>
-                    </div>
                 </div>
                 
                 <div class="param-group">
                     <div class="section-title">显示参数</div>
-                    <div class="mb-3" id="displayPointsGroup">
+                    <div class="mb-3">
                         <label class="form-label">显示数据点数: <span id="maxPointsValue">1000</span></label>
-                        <input type="range" class="form-range" name="max_points" min="200" max="5000" value="1000" id="maxPointsSlider">
-                        <small class="form-text text-muted" id="displayPointsHelp">控制波形显示的精度</small>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-3" id="multiPhaseOption" style="display: none;">
-                        <input class="form-check-input" type="checkbox" id="showAllPhasesSwitch">
-                        <label class="form-check-label" for="showAllPhasesSwitch">同时显示多相</label>
-                        <small class="form-text text-muted">在一个图表中显示所有相位</small>
+                        <input type="range" class="form-range" name="max_points" min="400" max="5000" value="1000" id="maxPointsSlider">
+                        <small class="form-text text-muted">控制RMS波形显示的精度</small>
                     </div>
                 </div>
                 
                 <div class="param-group">
                     <div class="section-title">可视化设置</div>
-                    <div class="mb-3" id="dcColorGroup" style="display: none;">
-                        <label class="form-label">直流颜色</label>
-                        <input type="color" class="form-control form-control-color" name="dc_color" id="dcColor" value="#9b59b6">
+                    <div class="mb-3">
+                        <label class="form-label">电压颜色</label>
+                        <input type="color" class="form-control form-control-color" name="voltage_color" id="voltageColor" value="#3498db">
                     </div>
                     
-                    <div class="mb-3" id="singlePhaseColorGroup">
-                        <label class="form-label">单相颜色</label>
-                        <input type="color" class="form-control form-control-color" name="single_phase_color" id="singlePhaseColor" value="#3498db">
-                    </div>
-                    
-                    <div id="threePhaseColorGroup" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label">A相颜色</label>
-                            <input type="color" class="form-control form-control-color" name="phase_a_color" id="phaseAColor" value="#e74c3c">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">B相颜色</label>
-                            <input type="color" class="form-control form-control-color" name="phase_b_color" id="phaseBColor" value="#f39c12">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">C相颜色</label>
-                            <input type="color" class="form-control form-control-color" name="phase_c_color" id="phaseCColor" value="#3498db">
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">电流颜色</label>
+                        <input type="color" class="form-control form-control-color" name="current_color" id="currentColor" value="#e74c3c">
                     </div>
                     
                     <div class="mb-3">
@@ -927,7 +833,7 @@
                     </div>
                     
                     <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="animationSwitch" name="enable_animation" checked>
+                        <input class="form-check-input" type="checkbox" id="animationSwitch" name="enable_animation">
                         <label class="form-check-label" for="animationSwitch">启用动画效果</label>
                     </div>
                     
@@ -938,13 +844,23 @@
                 </div>
                 
                 <button type="button" class="btn btn-success" id="startMonitorBtn">
-                    <i class="fas fa-eye me-2"></i>开始实时监控
+                    <i class="fas fa-eye me-2"></i>开始RMS监控
                 </button>
                 
                 <button type="button" class="btn btn-warning mt-2" id="stopMonitorBtn" style="display: none;">
                     <i class="fas fa-stop me-2"></i>停止监控
                 </button>
+                
+                <button type="button" class="btn btn-primary mt-2" id="generateWaveformBtn">
+                    <i class="fas fa-sine-wave me-2"></i>生成RMS波形
+                </button>
             </form>
+            
+            <!-- 调试面板 -->
+            <div class="debug-panel" id="debugPanel" style="display: none;">
+                <div class="debug-title">🔍 调试信息</div>
+                <div id="debugContent">调试面板已启用，等待数据...</div>
+            </div>
         </div>
         
         <div class="main-content">
@@ -953,13 +869,13 @@
                     <div class="nav-breadcrumb">
                         <a href="/client-selection">客户端选择</a>
                         <i class="fas fa-chevron-right"></i>
-                        <span>实时波形显示</span>
+                        <span>RMS波形显示</span>
                     </div>
                     <h2 class="mb-0 mt-2">
                         <i class="fas fa-chart-line me-2" style="color: var(--primary-color);"></i>
-                        电力实时波形显示
+                        电力RMS波形显示 - 平滑滚动
                     </h2>
-                    <p class="text-muted mb-0">支持示波器模式 · 实时监控与波形分析</p>
+                    <p class="text-muted mb-0">400点批量数据 · RMS计算 · 平滑滚动更新</p>
                 </div>
                 <div class="d-flex align-items-center gap-3">
                     <div class="connection-status connecting" id="connectionStatus">
@@ -968,7 +884,7 @@
                     </div>
                     <div class="realtime-indicator" id="realtimeIndicator" style="display: none;">
                         <div class="realtime-dot"></div>
-                        <span>实时监控</span>
+                        <span>RMS监控</span>
                     </div>
                 </div>
             </div>
@@ -978,8 +894,8 @@
             <!-- 客户端信息栏 -->
             <div class="client-info-bar" id="clientInfoBar" style="display: none;">
                 <div class="client-details">
-                    <div class="client-icon single-phase" id="clientIcon">
-                        <i class="fas fa-plug"></i>
+                    <div class="client-icon batch-sensor" id="clientIcon">
+                        <i class="fas fa-microchip"></i>
                     </div>
                     <div>
                         <h6 class="mb-0" id="clientName">未选择客户端</h6>
@@ -993,23 +909,21 @@
                     <button class="btn btn-outline-info btn-sm" onclick="goToDataAnalysis()">
                         <i class="fas fa-analytics me-1"></i>数据分析
                     </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="downloadClientCSV()">
+                        <i class="fas fa-download me-1"></i>下载CSV
+                    </button>
                 </div>
             </div>
             
             <div class="chart-container" id="chartContainer">
                 <div class="chart-title">
                     <span id="chartTitle">
-                        <i class="fas fa-chart-line me-2"></i>电力实时波形 - 等待数据源
+                        <i class="fas fa-chart-line me-2"></i>RMS正弦波形 - 等待数据源
                     </span>
                     <div class="chart-controls">
-                        <div class="phase-toggle" id="phaseToggles" style="display: none;">
-                            <!-- 动态生成相位控制 -->
-                        </div>
-                        <div class="oscilloscope-info" id="oscilloscopeInfo">
-                            <i class="fas fa-tv me-1"></i>
-                            示波器模式 | 滚动: <span id="currentSpeed">50ms</span> | 
-                            缓冲: <span id="currentBuffer">1000</span>点 | 
-                            模式: <span id="currentMode">单相</span>
+                        <div class="rms-info-badge" id="rmsInfoBadge" style="display: none;">
+                            <i class="fas fa-calculator me-1"></i>
+                            <span id="rmsInfoText">RMS: V=0.000V, I=0.000A</span>
                         </div>
                         <span class="text-muted" id="updateTime">等待数据源...</span>
                     </div>
@@ -1020,71 +934,46 @@
     </div>
 
     <script>
-        // 🔥 完整修复波形显示界面的JavaScript代码
-        // 在你的 waveform_display.html 文件中，替换 <script> 标签内的所有内容
-
+        // 🔥 改进的RMS波形显示系统 - 支持平滑滚动更新
+        
         // 全局变量
         let waveChart = null;
         let websocket = null;
         let selectedClientId = null;
-        let currentWorkMode = 'single_phase';
         let isMonitoring = false;
         let webClientId = 'web_' + Math.random().toString(36).substr(2, 9);
-        let currentAnalysisData = null;
-        let visiblePhases = new Set(['voltage']);
         let realtimeUpdateInterval = null;
         let isConnected = false;
-
-        // 示波器模式相关变量
-        let oscilloscopeMode = false;
-        let scrollSpeed = 50;
-        let bufferSize = 1000;
-        let updateRate = 10;
-        let oscilloscopeData = {};
-        let phaseOffsets = {};
-        let timeOffset = 0;
-        let oscilloscopeInterval = null;
-        let lastRMSValues = {};
-        let targetRMSValues = {};
-        let rmsTransitionSpeed = 0.05;
-
+        let debugMode = false;
+        
+        // 平滑滚动相关变量
+        let smoothScrollMode = true;
+        let scrollWindowSize = 500;
+        let updateInterval = 100;
+        let scrollUpdateTimer = null;
+        
+        // 客户端数据缓存
+        let clientDataCache = {};
+        let lastRMSData = {};
+        
+        // 波形数据缓冲区 - 用于平滑滚动
+        let waveformBuffer = {
+            voltage: [],
+            current: [],
+            timeAxis: []
+        };
+        
+        // 最新的RMS值 - 用于生成波形
+        let currentRMSValues = {
+            voltage_rms: 0.01,
+            current_rms: 10.0
+        };
+        
         // 波形生成参数
-        const waveformParams = {
-            frequency: 50,
-            samplingRate: 20000,
-            pointsPerCycle: 400,
-            dc: {
-                voltage: { default: 12.0 },
-                current: { default: 1.0 }
-            },
-            single_phase: {
-                voltage: { default: 0.01 },
-                current: { default: 10 }
-            },
-            three_phase: {
-                voltage: { default: 0.01 },
-                current: { default: 10 }
-            }
-        };
-
-        // 电力系统颜色配置
-        const powerColors = {
-            dc: '#9b59b6',
-            single_phase: '#3498db',
-            phase_a: '#e74c3c',
-            phase_b: '#f39c12', 
-            phase_c: '#3498db',
-            oscilloscope: {
-                dc: '#9b59b6',
-                single_phase: '#00ff88',
-                phase_a: '#ff4444',
-                phase_b: '#ffaa00',
-                phase_c: '#44aaff',
-                voltage: '#00ff88',
-                current: '#ffaa00'
-            }
-        };
-
+        let timeOffset = 0;
+        let frequency = 50; // Hz
+        let samplingRate = 1000; // 采样率
+        
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
             checkLoginAndClientSelection();
@@ -1092,7 +981,7 @@
             setupEventListeners();
             connectWebSocket();
             setupSliders();
-            setupOscilloscopeMode();
+            initSmoothScrollMode();
         });
 
         // 检查登录状态和客户端选择
@@ -1107,14 +996,49 @@
             // 检查是否选择了客户端
             const selectedClient = sessionStorage.getItem('selectedClientId');
             if (!selectedClient) {
-                window.location.href = '/client-selection';
+                showError('请先选择一个客户端');
+                setTimeout(() => {
+                    window.location.href = '/client-selection';
+                }, 2000);
                 return;
             }
             
             selectedClientId = selectedClient;
             updateClientInfo(selectedClient);
+            updateDebugInfo(`已选择客户端: ${selectedClient}`);
             
-            console.log('✅ Client selected:', selectedClientId);
+            console.log('✅ Batch Client selected:', selectedClientId);
+        }
+
+        // 调试功能
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugPanel = document.getElementById('debugPanel');
+            debugPanel.style.display = debugMode ? 'block' : 'none';
+            
+            if (debugMode) {
+                updateDebugInfo('调试模式已启用');
+            }
+        }
+
+        function updateDebugInfo(message) {
+            if (!debugMode) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const debugContent = document.getElementById('debugContent');
+            
+            if (debugContent) {
+                debugContent.innerHTML += `<br>[${timestamp}] ${message}`;
+                // 保持最新的50行
+                const lines = debugContent.innerHTML.split('<br>');
+                if (lines.length > 50) {
+                    debugContent.innerHTML = lines.slice(-50).join('<br>');
+                }
+                // 滚动到底部
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+            
+            console.log(`[DEBUG] ${message}`);
         }
 
         // 更新客户端信息显示
@@ -1122,39 +1046,98 @@
             const clientInfoBar = document.getElementById('clientInfoBar');
             const clientName = document.getElementById('clientName');
             const clientStatus = document.getElementById('clientStatus');
-            const clientIcon = document.getElementById('clientIcon');
             
             clientInfoBar.style.display = 'flex';
             clientName.textContent = clientId;
-            clientStatus.textContent = '准备连接...';
+            clientStatus.textContent = '准备连接批量数据源...';
             
-            // 这里可以根据客户端类型设置图标
-            clientIcon.className = 'client-icon single-phase';
+            updateDebugInfo(`更新客户端信息: ${clientId}`);
+        }
+
+        // 初始化平滑滚动模式
+        function initSmoothScrollMode() {
+            const smoothScrollControls = document.getElementById('smoothScrollControls');
+            const scrollParams = document.getElementById('scrollParams');
+            
+            if (smoothScrollMode) {
+                smoothScrollControls.classList.add('active');
+                scrollParams.classList.add('active');
+                startSmoothScrollUpdate();
+            }
+            
+            updateDebugInfo('平滑滚动模式已初始化');
+        }
+
+        // 消息显示函数
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('messageArea');
+            const alertClass = type === 'success' ? 'success-message' : 
+                              type === 'error' ? 'error-message' : 'warning-message';
+            
+            messageArea.innerHTML = `<div class="${alertClass}">${message}</div>`;
+            
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            showMessage(message, 'success');
+            updateDebugInfo(`SUCCESS: ${message}`);
+        }
+
+        function showError(message) {
+            showMessage(message, 'error');
+            updateDebugInfo(`ERROR: ${message}`);
+        }
+
+        function showWarning(message) {
+            showMessage(message, 'warning');
+            updateDebugInfo(`WARNING: ${message}`);
+        }
+
+        // 显示传输状态
+        function showTransmissionStatus() {
+            const transmissionStatus = document.getElementById('transmissionStatus');
+            transmissionStatus.classList.add('active');
+            setTimeout(() => {
+                transmissionStatus.classList.remove('active');
+            }, 2000);
         }
 
         // 导航函数
         function goToClientSelection() {
-            // 停止监控
             if (isMonitoring) {
                 stopMonitoring();
             }
-            
-            // 关闭WebSocket连接
             if (websocket) {
                 websocket.close();
             }
-            
             window.location.href = '/client-selection';
         }
 
         function goToDataAnalysis() {
-            // 保存当前选择的客户端
             if (selectedClientId) {
                 sessionStorage.setItem('selectedClientId', selectedClientId);
                 sessionStorage.setItem('analysisMode', 'analysis');
             }
-            
             window.location.href = '/data-analysis';
+        }
+
+        function downloadClientCSV() {
+            if (selectedClientId) {
+                const downloadUrl = `/api/download_csv/${selectedClientId}`;
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `batch_data_${selectedClientId}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showSuccess('正在下载CSV数据文件...');
+                updateDebugInfo(`下载CSV文件: ${downloadUrl}`);
+            } else {
+                showError('请先选择一个客户端');
+            }
         }
 
         // 初始化图表
@@ -1162,10 +1145,14 @@
             const ctx = document.getElementById('waveChart').getContext('2d');
             waveChart = new Chart(ctx, {
                 type: 'line',
-                data: { datasets: [] },
+                data: { 
+                    labels: [],
+                    datasets: [] 
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: false, // 关闭动画提高性能
                     interaction: { intersect: false, mode: 'index' },
                     plugins: {
                         legend: {
@@ -1209,20 +1196,102 @@
                     elements: {
                         point: { radius: 0, hoverRadius: 5 },
                         line: { borderWidth: 2, tension: 0.1 }
-                    },
-                    animation: { duration: 0 }
+                    }
                 }
             });
+            
+            updateDebugInfo('图表初始化完成');
         }
 
         // 获取数据集对应的单位
         function getUnitForDataset(label) {
-            if (label.includes('电压') || label.includes('voltage')) return 'V';
-            if (label.includes('电流') || label.includes('current')) return 'A';
+            if (label && (label.includes('电压') || label.includes('voltage'))) return 'V';
+            if (label && (label.includes('电流') || label.includes('current'))) return 'A';
             return '';
         }
 
-        // 🔥 关键修复：WebSocket连接初始化
+        // 设置滑块事件监听
+        function setupSliders() {
+            const maxPointsSlider = document.getElementById('maxPointsSlider');
+            const maxPointsValue = document.getElementById('maxPointsValue');
+            const lineWidthSlider = document.getElementById('lineWidthSlider');
+            const lineWidthValue = document.getElementById('lineWidthValue');
+            
+            // 平滑滚动控制
+            const scrollWindowSlider = document.getElementById('scrollWindowSlider');
+            const scrollWindowValue = document.getElementById('scrollWindowValue');
+            const updateIntervalSlider = document.getElementById('updateIntervalSlider');
+            const updateIntervalValue = document.getElementById('updateIntervalValue');
+            
+            maxPointsSlider.addEventListener('input', function() {
+                maxPointsValue.textContent = this.value;
+            });
+            
+            lineWidthSlider.addEventListener('input', function() {
+                lineWidthValue.textContent = this.value;
+                updateChartLineWidth(parseInt(this.value));
+            });
+            
+            scrollWindowSlider.addEventListener('input', function() {
+                scrollWindowSize = parseInt(this.value);
+                scrollWindowValue.textContent = scrollWindowSize;
+                resizeWaveformBuffer();
+                updateDebugInfo(`滚动窗口大小调整为: ${scrollWindowSize}`);
+            });
+            
+            updateIntervalSlider.addEventListener('input', function() {
+                updateInterval = parseInt(this.value);
+                updateIntervalValue.textContent = updateInterval;
+                if (smoothScrollMode && isMonitoring) {
+                    restartSmoothScrollUpdate();
+                }
+                updateDebugInfo(`更新间隔调整为: ${updateInterval}ms`);
+            });
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            document.getElementById('startMonitorBtn').addEventListener('click', startMonitoring);
+            document.getElementById('stopMonitorBtn').addEventListener('click', stopMonitoring);
+            document.getElementById('generateWaveformBtn').addEventListener('click', generateRMSWaveform);
+            
+            // 平滑滚动模式开关
+            document.getElementById('smoothScrollMode').addEventListener('change', function() {
+                smoothScrollMode = this.checked;
+                const smoothScrollControls = document.getElementById('smoothScrollControls');
+                const scrollParams = document.getElementById('scrollParams');
+                
+                if (smoothScrollMode) {
+                    smoothScrollControls.classList.add('active');
+                    scrollParams.classList.add('active');
+                    startSmoothScrollUpdate();
+                    showSuccess('平滑滚动模式已启用');
+                    updateDebugInfo('平滑滚动模式已启用');
+                } else {
+                    smoothScrollControls.classList.remove('active');
+                    scrollParams.classList.remove('active');
+                    stopSmoothScrollUpdate();
+                    showWarning('平滑滚动模式已禁用');
+                    updateDebugInfo('平滑滚动模式已禁用');
+                }
+            });
+            
+            // 参数变化时重新生成波形
+            document.getElementById('columnSelect').addEventListener('change', function() {
+                if (lastRMSData.voltage_rms !== undefined) {
+                    if (smoothScrollMode) {
+                        // 平滑模式下不重新生成，继续使用当前缓冲区
+                        updateDebugInfo('参数变化，平滑模式继续使用当前缓冲区');
+                    } else {
+                        generateRMSWaveform();
+                    }
+                }
+            });
+            
+            updateDebugInfo('事件监听器设置完成');
+        }
+
+        // WebSocket连接初始化
         function connectWebSocket() {
             if (websocket) {
                 websocket.close();
@@ -1231,7 +1300,7 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/${webClientId}`;
             
-            console.log('🔗 Connecting to WebSocket:', wsUrl);
+            updateDebugInfo(`正在连接WebSocket: ${wsUrl}`);
             
             try {
                 websocket = new WebSocket(wsUrl);
@@ -1240,20 +1309,15 @@
                     console.log('✅ WebSocket connected');
                     isConnected = true;
                     updateConnectionStatus('connected', '已连接');
-                    startHeartbeat();
+                    updateDebugInfo('WebSocket连接成功');
                     
-                    // 🔥 关键修复：自动启动监控
-                    if (selectedClientId) {
-                        console.log('🚀 Auto-starting monitoring for:', selectedClientId);
-                        setTimeout(() => {
-                            startMonitoring();
-                        }, 1000);
-                    }
+                    // 获取客户端最新数据
+                    fetchClientStatus();
                 };
                 
                 websocket.onmessage = function(event) {
                     const message = JSON.parse(event.data);
-                    console.log('📨 Received message:', message.type, message);
+                    updateDebugInfo(`收到WebSocket消息: ${message.type}`);
                     handleWebSocketMessage(message);
                 };
                 
@@ -1261,7 +1325,7 @@
                     console.log('❌ WebSocket disconnected');
                     isConnected = false;
                     updateConnectionStatus('disconnected', '连接断开');
-                    stopHeartbeat();
+                    updateDebugInfo(`WebSocket断开: code=${event.code}`);
                     setTimeout(connectWebSocket, 3000);
                 };
                 
@@ -1269,117 +1333,375 @@
                     console.error('❌ WebSocket error:', error);
                     isConnected = false;
                     updateConnectionStatus('disconnected', '连接错误');
+                    updateDebugInfo('WebSocket连接错误');
                 };
                 
             } catch (error) {
                 console.error('❌ WebSocket connection failed:', error);
                 isConnected = false;
                 updateConnectionStatus('disconnected', '连接失败');
+                updateDebugInfo(`WebSocket连接失败: ${error.message}`);
             }
         }
 
-        // 🔥 关键修复：处理WebSocket消息
+        // 获取客户端状态
+        async function fetchClientStatus() {
+            try {
+                updateDebugInfo(`获取客户端状态: ${selectedClientId}`);
+                
+                const response = await fetch(`/api/batch_status/${selectedClientId}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateDebugInfo(`客户端状态获取成功: ${JSON.stringify(data.rms_values)}`);
+                    
+                    // 更新RMS值显示
+                    if (data.rms_values) {
+                        lastRMSData = data.rms_values;
+                        currentRMSValues = data.rms_values;
+                        updateBatchDataDisplay({
+                            rms_calculation: data.rms_values,
+                            data_points: { total: data.batch_info.total_batches_received || 0 }
+                        });
+                        
+                        // 根据模式决定如何更新波形
+                        if (smoothScrollMode) {
+                            // 平滑模式：只更新RMS值，不重新生成整个波形
+                            updateDebugInfo('平滑模式：更新RMS值，继续滚动');
+                        } else {
+                            // 传统模式：重新生成波形
+                            setTimeout(() => {
+                                generateRMSWaveform();
+                            }, 500);
+                        }
+                    }
+                } else {
+                    updateDebugInfo(`客户端状态获取失败: ${data.message}`);
+                }
+            } catch (error) {
+                updateDebugInfo(`获取客户端状态错误: ${error.message}`);
+            }
+        }
+
+        // 处理WebSocket消息
         function handleWebSocketMessage(message) {
             switch (message.type) {
                 case 'monitoring_started':
-                    console.log('✅ Monitoring started successfully for:', message.data_source_client);
-                    showSuccess(`开始监控电力客户端: ${message.data_source_client}`);
+                    updateDebugInfo(`监控已启动: ${message.data_source_client}`);
+                    showSuccess(`开始监控批量数据客户端: ${message.data_source_client}`);
                     updateMonitoringStatus(true);
-                    
-                    if (message.power_type) {
-                        updateWorkModeDisplay(message.power_type);
-                    }
                     break;
                     
                 case 'monitoring_stopped':
-                    console.log('⏹️ Monitoring stopped');
-                    showSuccess('已停止电力监控');
+                    updateDebugInfo('监控已停止');
+                    showSuccess('已停止批量数据监控');
                     updateMonitoringStatus(false);
                     break;
                     
-                case 'realtime_data_update':
+                case 'batch_data_update':
                     if (message.client_id === selectedClientId && isMonitoring) {
-                        console.log('📊 Realtime data received:', message.data);
+                        updateDebugInfo(`收到批量数据更新: ${message.data.data_points.total}点`);
                         showTransmissionStatus();
-                        
-                        // 🔥 直接处理实时数据
-                        handleRealtimeData(message.data);
-                        
-                        // 更新目标RMS值用于示波器模式
-                        if (oscilloscopeMode) {
-                            updateTargetRMSValues(message.data);
-                        }
-                    }
-                    break;
-                    
-                case 'scroll_waveform_update':
-                    console.log('🌊 Scroll waveform received');
-                    if (message.client_id === selectedClientId && oscilloscopeMode) {
-                        handleScrollWaveform(message.scroll_data);
+                        handleBatchDataUpdate(message.data);
                     }
                     break;
                     
                 case 'pong':
-                    console.log('🏓 Received pong');
+                    updateDebugInfo('收到心跳响应');
                     break;
                     
                 case 'error':
-                    console.error('❌ Server error:', message.message);
+                    updateDebugInfo(`服务器错误: ${message.message}`);
                     showError(message.message || '发生未知错误');
                     break;
                     
                 default:
-                    console.log('❓ Unknown message type:', message.type);
+                    updateDebugInfo(`未知消息类型: ${message.type}`);
             }
         }
 
-        // 🔥 新增：处理实时数据
-        function handleRealtimeData(data) {
+        // 处理批量数据更新
+        function handleBatchDataUpdate(data) {
             try {
-                console.log('📊 Processing realtime data:', data);
+                updateDebugInfo('处理批量数据更新');
                 
-                // 更新最新数据显示
-                updateDataDisplay(data);
+                // 更新客户端缓存
+                clientDataCache[selectedClientId] = data;
                 
-                // 如果不是示波器模式，定期更新图表
-                if (!oscilloscopeMode) {
-                    // 每3秒更新一次图表
-                    setTimeout(() => {
-                        updateRealtimeChart();
-                    }, 100);
+                // 更新批量数据显示
+                updateBatchDataDisplay(data);
+                
+                // 更新客户端状态
+                const clientStatus = document.getElementById('clientStatus');
+                if (clientStatus) {
+                    clientStatus.textContent = `正在接收批量数据... (${data.data_points.total}点)`;
+                }
+                
+                // 更新图表标题
+                const chartTitle = document.getElementById('chartTitle');
+                if (chartTitle) {
+                    chartTitle.innerHTML = `
+                        <i class="fas fa-chart-line me-2"></i>
+                        RMS正弦波形 - 客户端: ${selectedClientId} (批量模式)
+                    `;
+                }
+                
+                // 🔥 关键改进：根据模式更新波形
+                if (data.rms_calculation) {
+                    lastRMSData = data.rms_calculation;
+                    currentRMSValues = data.rms_calculation;
+                    
+                    if (smoothScrollMode) {
+                        // 平滑模式：只更新RMS值，不重新生成整个波形
+                        updateDebugInfo(`平滑模式：接收到新RMS值 V=${currentRMSValues.voltage_rms}V, I=${currentRMSValues.current_rms}A`);
+                    } else {
+                        // 传统模式：重新生成波形
+                        setTimeout(() => {
+                            generateRMSWaveform();
+                        }, 200);
+                    }
                 }
                 
             } catch (error) {
-                console.error('❌ Error handling realtime data:', error);
+                updateDebugInfo(`批量数据更新处理错误: ${error.message}`);
             }
         }
 
-        // 🔥 新增：更新数据显示
-        function updateDataDisplay(data) {
+        // 🔥 核心功能：启动平滑滚动更新
+        function startSmoothScrollUpdate() {
+            if (scrollUpdateTimer) {
+                clearInterval(scrollUpdateTimer);
+            }
+            
+            // 初始化波形缓冲区
+            initializeWaveformBuffer();
+            
+            scrollUpdateTimer = setInterval(() => {
+                if (smoothScrollMode && isMonitoring) {
+                    generateSmoothScrollData();
+                    updateSmoothScrollChart();
+                }
+            }, updateInterval);
+            
+            updateDebugInfo(`平滑滚动更新已启动，间隔: ${updateInterval}ms`);
+        }
+
+        // 停止平滑滚动更新
+        function stopSmoothScrollUpdate() {
+            if (scrollUpdateTimer) {
+                clearInterval(scrollUpdateTimer);
+                scrollUpdateTimer = null;
+            }
+            updateDebugInfo('平滑滚动更新已停止');
+        }
+
+        // 重启平滑滚动更新
+        function restartSmoothScrollUpdate() {
+            stopSmoothScrollUpdate();
+            if (smoothScrollMode) {
+                startSmoothScrollUpdate();
+            }
+        }
+
+        // 初始化波形缓冲区
+        function initializeWaveformBuffer() {
+            waveformBuffer.voltage = new Array(scrollWindowSize).fill(0);
+            waveformBuffer.current = new Array(scrollWindowSize).fill(0);
+            waveformBuffer.timeAxis = new Array(scrollWindowSize).fill(0).map((_, i) => i);
+            timeOffset = 0;
+            
+            updateDebugInfo(`波形缓冲区已初始化，大小: ${scrollWindowSize}`);
+        }
+
+        // 调整波形缓冲区大小
+        function resizeWaveformBuffer() {
+            const oldSize = waveformBuffer.voltage.length;
+            
+            if (scrollWindowSize > oldSize) {
+                // 增加缓冲区
+                const diff = scrollWindowSize - oldSize;
+                for (let i = 0; i < diff; i++) {
+                    waveformBuffer.voltage.unshift(0);
+                    waveformBuffer.current.unshift(0);
+                    waveformBuffer.timeAxis.unshift(waveformBuffer.timeAxis[0] - 1);
+                }
+            } else if (scrollWindowSize < oldSize) {
+                // 减少缓冲区
+                const diff = oldSize - scrollWindowSize;
+                waveformBuffer.voltage.splice(0, diff);
+                waveformBuffer.current.splice(0, diff);
+                waveformBuffer.timeAxis.splice(0, diff);
+            }
+            
+            // 重新编号时间轴
+            waveformBuffer.timeAxis = waveformBuffer.timeAxis.map((_, i) => i);
+            
+            updateDebugInfo(`波形缓冲区已调整，从 ${oldSize} 到 ${scrollWindowSize}`);
+        }
+
+        // 🔥 核心功能：生成平滑滚动数据
+        function generateSmoothScrollData() {
+            // 使用接收到的真实RMS值生成波形
+            const vRms = currentRMSValues.voltage_rms || 0.01;
+            const iRms = currentRMSValues.current_rms || 10.0;
+            
+            // 时间增量
+            const dt = 1000 / samplingRate; // ms
+            timeOffset += dt;
+            
+            // 计算相位
+            const phase = (2 * Math.PI * frequency * timeOffset) / 1000;
+            
+            // 🔥 使用真实RMS值生成正弦波
+            const voltageAmplitude = vRms * Math.sqrt(2);
+            const currentAmplitude = iRms * Math.sqrt(2);
+            
+            // 生成电压波形（正弦波 + 少量谐波和噪声）
+            const voltageBase = voltageAmplitude * Math.sin(phase);
+            const voltageHarmonic = voltageBase * 0.05 * Math.sin(3 * phase);
+            const voltageNoise = (Math.random() - 0.5) * vRms * 0.02;
+            const voltageValue = voltageBase + voltageHarmonic + voltageNoise;
+            
+            // 生成电流波形（滞后电压30度）
+            const currentPhase = phase - (Math.PI / 6); // 30度相位差
+            const currentBase = currentAmplitude * Math.sin(currentPhase);
+            const currentHarmonic = currentBase * 0.03 * Math.sin(5 * phase);
+            const currentNoise = (Math.random() - 0.5) * iRms * 0.02;
+            const currentValue = currentBase + currentHarmonic + currentNoise;
+            
+            // 🔥 滚动更新缓冲区（从右到左滚动）
+            waveformBuffer.voltage.shift();  // 移除最左边的旧数据
+            waveformBuffer.current.shift();
+            waveformBuffer.timeAxis.shift();
+            
+            waveformBuffer.voltage.push(voltageValue);  // 在右边添加新数据
+            waveformBuffer.current.push(currentValue);
+            waveformBuffer.timeAxis.push(waveformBuffer.timeAxis[waveformBuffer.timeAxis.length - 1] + 1);
+        }
+
+        // 🔥 核心功能：更新平滑滚动图表
+        function updateSmoothScrollChart() {
+            if (!waveChart) return;
+            
+            const selectedColumn = document.getElementById('columnSelect').value;
+            const datasets = [];
+            
+            // 根据选择的参数显示对应波形
+            if (selectedColumn === 'voltage') {
+                datasets.push({
+                    label: '电压波形 (RMS)',
+                    data: waveformBuffer.voltage.map((y, i) => ({ x: i, y: y })),
+                    borderColor: document.getElementById('voltageColor').value,
+                    backgroundColor: 'transparent',
+                    borderWidth: parseInt(document.getElementById('lineWidthSlider').value),
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: document.getElementById('pointsSwitch').checked ? 1 : 0
+                });
+            } else {
+                datasets.push({
+                    label: '电流波形 (RMS)',
+                    data: waveformBuffer.current.map((y, i) => ({ x: i, y: y })),
+                    borderColor: document.getElementById('currentColor').value,
+                    backgroundColor: 'transparent',
+                    borderWidth: parseInt(document.getElementById('lineWidthSlider').value),
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: document.getElementById('pointsSwitch').checked ? 1 : 0
+                });
+            }
+            
+            // 更新图表数据（无动画，避免闪烁）
+            waveChart.data.labels = waveformBuffer.timeAxis;
+            waveChart.data.datasets = datasets;
+            waveChart.update('none');
+        }
+
+        // 更新批量数据显示
+        function updateBatchDataDisplay(data) {
+            const batchInfoPanel = document.getElementById('batchInfoPanel');
+            const batchCount = document.getElementById('batchCount');
+            const lastUpdate = document.getElementById('lastUpdate');
+            const voltageRMS = document.getElementById('voltageRMS');
+            const currentRMS = document.getElementById('currentRMS');
+            const rmsInfoBadge = document.getElementById('rmsInfoBadge');
+            const rmsInfoText = document.getElementById('rmsInfoText');
             const updateTime = document.getElementById('updateTime');
-            updateTime.textContent = `最后更新: ${new Date().toLocaleTimeString()}`;
             
-            // 更新客户端状态
-            const clientStatus = document.getElementById('clientStatus');
-            if (clientStatus) {
-                const powerType = data.power_type || 'unknown';
-                clientStatus.textContent = `正在接收数据... (${powerType})`;
+            // 更新批量数据信息
+            if (data.data_points) {
+                batchCount.textContent = `${data.data_points.total}点`;
             }
             
-            // 更新图表标题
-            const chartTitle = document.getElementById('chartTitle');
-            if (chartTitle) {
-                chartTitle.innerHTML = `
-                    <i class="fas fa-chart-line me-2"></i>
-                    电力实时波形 - 客户端: ${selectedClientId}
-                `;
+            const now = new Date();
+            lastUpdate.textContent = now.toLocaleTimeString();
+            updateTime.textContent = `最后更新: ${now.toLocaleTimeString()}`;
+            
+            // 更新RMS值
+            if (data.rms_calculation) {
+                const vRms = data.rms_calculation.voltage_rms || 0;
+                const iRms = data.rms_calculation.current_rms || 0;
+                
+                voltageRMS.textContent = `${vRms.toFixed(3)}V`;
+                currentRMS.textContent = `${iRms.toFixed(3)}A`;
+                
+                // 更新RMS信息徽章
+                rmsInfoText.textContent = `RMS: V=${vRms.toFixed(3)}V, I=${iRms.toFixed(3)}A`;
+                rmsInfoBadge.style.display = 'inline-flex';
+                
+                // 激活批量信息面板
+                batchInfoPanel.classList.add('active');
+                
+                updateDebugInfo(`RMS值更新: V=${vRms.toFixed(3)}V, I=${iRms.toFixed(3)}A`);
             }
         }
 
-        // 🔥 关键修复：开始监控
+        // 更新连接状态
+        function updateConnectionStatus(status, text) {
+            const connectionStatus = document.getElementById('connectionStatus');
+            const statusIndicator = connectionStatus.querySelector('.status-indicator');
+            const statusText = connectionStatus.querySelector('span');
+            
+            connectionStatus.className = `connection-status ${status}`;
+            statusIndicator.className = `status-indicator ${status}`;
+            statusText.textContent = text;
+            
+            updateDebugInfo(`连接状态更新: ${status} - ${text}`);
+        }
+
+        // 更新监控状态
+        function updateMonitoringStatus(monitoring) {
+            isMonitoring = monitoring;
+            
+            const startBtn = document.getElementById('startMonitorBtn');
+            const stopBtn = document.getElementById('stopMonitorBtn');
+            const realtimeIndicator = document.getElementById('realtimeIndicator');
+            
+            if (monitoring) {
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'block';
+                realtimeIndicator.style.display = 'flex';
+                
+                // 🔥 启动平滑滚动（如果启用）
+                if (smoothScrollMode) {
+                    startSmoothScrollUpdate();
+                }
+            } else {
+                startBtn.style.display = 'block';
+                stopBtn.style.display = 'none';
+                realtimeIndicator.style.display = 'none';
+                
+                // 停止平滑滚动
+                stopSmoothScrollUpdate();
+            }
+            
+            updateDebugInfo(`监控状态更新: ${monitoring ? '已启动' : '已停止'}`);
+        }
+
+        // 开始监控
         async function startMonitoring() {
             if (!selectedClientId) {
-                showError('请先选择电力数据源客户端');
+                showError('请先选择批量数据源客户端');
                 return;
             }
             
@@ -1388,27 +1710,19 @@
                 return;
             }
             
-            console.log('🚀 Starting monitoring for:', selectedClientId, 'Oscilloscope mode:', oscilloscopeMode);
+            updateDebugInfo(`启动监控: ${selectedClientId}`);
             
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 const monitoringRequest = {
                     type: 'start_monitoring',
-                    data_source_client: selectedClientId,
-                    scroll_mode: oscilloscopeMode  // 添加滚动模式标识
+                    data_source_client: selectedClientId
                 };
                 
-                console.log('📤 Sending monitoring request:', monitoringRequest);
+                updateDebugInfo(`发送监控请求: ${JSON.stringify(monitoringRequest)}`);
                 websocket.send(JSON.stringify(monitoringRequest));
                 
-                // 立即更新UI状态
                 updateMonitoringStatus(true);
-                showSuccess('正在启动监控...');
-                
-                if (oscilloscopeMode) {
-                    initializeOscilloscopeDataStructure();
-                    restartOscilloscopeUpdate();
-                    showSuccess('示波器模式监控已启动');
-                }
+                showSuccess('正在启动批量数据监控...');
             } else {
                 showError('WebSocket连接未建立');
             }
@@ -1416,51 +1730,38 @@
 
         // 停止监控
         async function stopMonitoring() {
+            updateDebugInfo('停止监控');
+            
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 websocket.send(JSON.stringify({
                     type: 'stop_monitoring'
                 }));
             }
 
-            if (oscilloscopeInterval) {
-                clearInterval(oscilloscopeInterval);
-                oscilloscopeInterval = null;
-            }
-
             updateMonitoringStatus(false);
-
-            if (oscilloscopeMode) {
-                setTimeout(() => {
-                    startOscilloscopeDemo();
-                }, 100);
-            }
         }
 
-        // 🔥 关键修复：实时图表更新
-        function updateRealtimeChart() {
-            if (!selectedClientId || !isMonitoring) {
-                console.log('❌ Cannot update chart: no selected client or not monitoring');
+        // 生成RMS波形（传统模式）
+        async function generateRMSWaveform() {
+            if (!selectedClientId) {
+                showError('请先选择客户端');
                 return;
             }
             
-            console.log('🔄 Updating realtime chart...');
+            if (smoothScrollMode) {
+                showWarning('平滑滚动模式下无需手动生成波形');
+                return;
+            }
             
-            // 调用实时分析API
-            fetchRealtimeAnalysis();
-        }
-
-        // 🔥 新增：获取实时分析数据
-        async function fetchRealtimeAnalysis() {
             try {
+                updateDebugInfo('开始生成RMS波形（传统模式）');
+                
                 const formData = new FormData();
                 formData.append('client_id', selectedClientId);
-                formData.append('selected_column', document.getElementById('columnSelect').value || 'voltage');
-                formData.append('model', 'time_domain');
-                formData.append('enable_filter', false);
-                formData.append('max_points', document.getElementById('maxPointsSlider').value || 1000);
-                formData.append('window_size', 10);
-                formData.append('show_all_phases', document.getElementById('showAllPhasesSwitch')?.checked || false);
-                formData.append('analysis_mode', 'monitoring');
+                formData.append('selected_column', document.getElementById('columnSelect').value);
+                formData.append('model', 'rms_waveform');
+                formData.append('max_points', document.getElementById('maxPointsSlider').value);
+                formData.append('analysis_mode', 'waveform_display');
                 
                 const response = await fetch('/api/realtime_analyze', {
                     method: 'POST',
@@ -1470,705 +1771,91 @@
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    console.log('📊 Realtime analysis success:', result.data);
-                    updateChart(result.data);
+                    updateDebugInfo('RMS波形生成成功（传统模式）');
+                    updateTraditionalChart(result.data);
+                    showSuccess('RMS波形生成成功');
                 } else {
-                    console.error('❌ Realtime analysis failed:', result.message);
-                    showError(result.message);
+                    updateDebugInfo(`RMS波形生成失败: ${result.message}`);
+                    showError(`波形生成失败: ${result.message}`);
                 }
                 
             } catch (error) {
-                console.error('❌ Failed to fetch realtime analysis:', error);
+                updateDebugInfo(`RMS波形生成错误: ${error.message}`);
+                showError(`生成波形时发生错误: ${error.message}`);
             }
         }
 
-        // 🔥 新增：更新图表
-        function updateChart(analysisData) {
+        // 更新传统图表（非平滑模式）
+        function updateTraditionalChart(analysisData) {
             try {
                 if (!waveChart || !analysisData) {
-                    console.log('❌ Chart or data not available');
+                    updateDebugInfo('图表或数据不可用');
                     return;
                 }
                 
-                currentAnalysisData = analysisData;
+                updateDebugInfo(`更新传统图表: ${analysisData.wave_data.length}个数据点`);
                 
                 // 清空现有数据
                 waveChart.data.datasets = [];
+                waveChart.data.labels = [];
                 
-                const powerType = analysisData.power_type || 'single_phase';
-                
-                if (analysisData.is_multi_phase && analysisData.wave_data_dict) {
-                    // 多相显示
-                    Object.keys(analysisData.wave_data_dict).forEach((key, index) => {
-                        const waveData = analysisData.wave_data_dict[key];
-                        if (waveData && waveData.length > 0) {
-                            waveChart.data.datasets.push({
-                                label: getChineseLabel(key),
-                                data: waveData,
-                                borderColor: getColorForKey(key),
-                                backgroundColor: getColorForKey(key) + '20',
-                                borderWidth: 2,
-                                fill: false,
-                                tension: 0.1,
-                                pointRadius: 0
-                            });
-                        }
+                // 添加数据集
+                if (analysisData.wave_data && analysisData.wave_data.length > 0) {
+                    const selectedColumn = analysisData.selected_column || 'voltage';
+                    const color = selectedColumn === 'voltage' ? 
+                        document.getElementById('voltageColor').value : 
+                        document.getElementById('currentColor').value;
+                    const label = selectedColumn === 'voltage' ? '电压波形 (RMS)' : '电流波形 (RMS)';
+                    
+                    // 准备数据
+                    const chartData = analysisData.wave_data.map((point, index) => ({
+                        x: index,
+                        y: point.y
+                    }));
+                    
+                    // 创建标签
+                    waveChart.data.labels = analysisData.wave_data.map((point, index) => index);
+                    
+                    waveChart.data.datasets.push({
+                        label: label,
+                        data: chartData,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: parseInt(document.getElementById('lineWidthSlider').value),
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: document.getElementById('pointsSwitch').checked ? 1 : 0
                     });
-                } else {
-                    // 单相显示
-                    const waveData = analysisData.wave_data;
-                    if (waveData && waveData.length > 0) {
-                        const selectedColumn = analysisData.selected_column || 'voltage';
-                        waveChart.data.datasets.push({
-                            label: getChineseLabel(selectedColumn),
-                            data: waveData,
-                            borderColor: getColorForKey(selectedColumn),
-                            backgroundColor: getColorForKey(selectedColumn) + '20',
-                            borderWidth: 2,
-                            fill: false,
-                            tension: 0.1,
-                            pointRadius: 0
-                        });
-                    }
+                    
+                    updateDebugInfo(`传统图表数据集添加: ${label}, ${chartData.length}个点`);
                 }
                 
                 // 更新图表
-                waveChart.update('none');
+                const animationEnabled = document.getElementById('animationSwitch').checked;
+                waveChart.update(animationEnabled ? 'default' : 'none');
                 
-                // 更新时间显示
+                // 更新显示信息
+                if (analysisData.source_rms_values) {
+                    const vRms = analysisData.source_rms_values.voltage_rms || 0;
+                    const iRms = analysisData.source_rms_values.current_rms || 0;
+                    
+                    document.getElementById('rmsInfoText').textContent = 
+                        `RMS: V=${vRms.toFixed(3)}V, I=${iRms.toFixed(3)}A`;
+                    document.getElementById('rmsInfoBadge').style.display = 'inline-flex';
+                }
+                
                 document.getElementById('updateTime').textContent = 
                     `最后更新: ${new Date().toLocaleTimeString()}`;
-                    
-                console.log('✅ Chart updated successfully');
+                
+                updateDebugInfo('传统图表更新完成');
                 
             } catch (error) {
-                console.error('❌ Error updating chart:', error);
-                showError('更新图表时发生错误: ' + error.message);
+                updateDebugInfo(`传统图表更新错误: ${error.message}`);
+                console.error('Chart update error:', error);
             }
         }
 
-        // 🔥 新增：获取中文标签
-        function getChineseLabel(key) {
-            const labels = {
-                'voltage': '电压',
-                'current': '电流',
-                'voltage_a': 'A相电压',
-                'voltage_b': 'B相电压', 
-                'voltage_c': 'C相电压',
-                'current_a': 'A相电流',
-                'current_b': 'B相电流',
-                'current_c': 'C相电流'
-            };
-            return labels[key] || key;
-        }
-
-        // 🔥 新增：获取颜色
-        function getColorForKey(key) {
-            if (key.includes('_a') || key === 'voltage_a' || key === 'current_a') return powerColors.phase_a;
-            if (key.includes('_b') || key === 'voltage_b' || key === 'current_b') return powerColors.phase_b;
-            if (key.includes('_c') || key === 'voltage_c' || key === 'current_c') return powerColors.phase_c;
-            if (key.includes('voltage')) return powerColors.single_phase;
-            if (key.includes('current')) return powerColors.dc;
-            return powerColors.single_phase;
-        }
-
-        // 更新工作模式显示
-        function updateWorkModeDisplay(powerType) {
-            currentWorkMode = powerType;
-            const indicator = document.getElementById('workModeIndicator');
-            const display = document.getElementById('workModeDisplay');
-            const multiPhaseOption = document.getElementById('multiPhaseOption');
-            const dcColorGroup = document.getElementById('dcColorGroup');
-            const singlePhaseColorGroup = document.getElementById('singlePhaseColorGroup');
-            const threePhaseColorGroup = document.getElementById('threePhaseColorGroup');
-            
-            display.style.display = 'block';
-            
-            if (powerType === 'dc') {
-                indicator.className = 'work-mode-indicator dc';
-                indicator.innerHTML = '<i class="fas fa-battery-half"></i><span>直流系统</span>';
-                
-                multiPhaseOption.style.display = 'none';
-                dcColorGroup.style.display = 'block';
-                singlePhaseColorGroup.style.display = 'none';
-                threePhaseColorGroup.style.display = 'none';
-                
-                updateColumnOptions('dc');
-                hideSinglePhaseToggles();
-            } else if (powerType === 'three_phase') {
-                indicator.className = 'work-mode-indicator three-phase';
-                indicator.innerHTML = '<i class="fas fa-bolt"></i><span>三相电系统</span>';
-                
-                multiPhaseOption.style.display = 'block';
-                dcColorGroup.style.display = 'none';
-                singlePhaseColorGroup.style.display = 'none';
-                threePhaseColorGroup.style.display = 'block';
-                
-                updateColumnOptions('three_phase');
-                setupThreePhaseToggles();
-            } else {
-                indicator.className = 'work-mode-indicator single-phase';
-                indicator.innerHTML = '<i class="fas fa-plug"></i><span>单相电系统</span>';
-                
-                multiPhaseOption.style.display = 'none';
-                dcColorGroup.style.display = 'none';
-                singlePhaseColorGroup.style.display = 'block';
-                threePhaseColorGroup.style.display = 'none';
-                
-                updateColumnOptions('single_phase');
-                hideSinglePhaseToggles();
-            }
-            
-            // 更新客户端图标
-            const clientIcon = document.getElementById('clientIcon');
-            const clientIconClass = powerType === 'dc' ? 'dc' : 
-                                powerType === 'three_phase' ? 'three-phase' : 'single-phase';
-            clientIcon.className = `client-icon ${clientIconClass}`;
-            
-            // 重新初始化示波器数据结构
-            if (oscilloscopeMode) {
-                initializeOscilloscopeDataStructure();
-            }
-            
-            updateOscilloscopeInfo();
-        }
-
-        // 更新列选项
-        function updateColumnOptions(powerType) {
-            const columnSelect = document.getElementById('columnSelect');
-            columnSelect.innerHTML = '';
-            
-            if (powerType === 'dc') {
-                const options = [
-                    {value: 'voltage', text: '直流电压 (V)'},
-                    {value: 'current', text: '直流电流 (I)'}
-                ];
-                
-                options.forEach(option => {
-                    const opt = document.createElement('option');
-                    opt.value = option.value;
-                    opt.textContent = option.text;
-                    columnSelect.appendChild(opt);
-                });
-            } else if (powerType === 'three_phase') {
-                const optGroups = [
-                    {
-                        label: '电压参数',
-                        options: [
-                            {value: 'voltage_a', text: 'A相电压 (Va)', indicator: 'phase-a'},
-                            {value: 'voltage_b', text: 'B相电压 (Vb)', indicator: 'phase-b'},
-                            {value: 'voltage_c', text: 'C相电压 (Vc)', indicator: 'phase-c'}
-                        ]
-                    },
-                    {
-                        label: '电流参数',
-                        options: [
-                            {value: 'current_a', text: 'A相电流 (Ia)', indicator: 'phase-a'},
-                            {value: 'current_b', text: 'B相电流 (Ib)', indicator: 'phase-b'},
-                            {value: 'current_c', text: 'C相电流 (Ic)', indicator: 'phase-c'}
-                        ]
-                    }
-                ];
-                
-                optGroups.forEach(group => {
-                    const optGroup = document.createElement('optgroup');
-                    optGroup.label = group.label;
-                    
-                    group.options.forEach(option => {
-                        const opt = document.createElement('option');
-                        opt.value = option.value;
-                        opt.textContent = option.text;
-                        if (option.indicator) {
-                            opt.dataset.indicator = option.indicator;
-                        }
-                        optGroup.appendChild(opt);
-                    });
-                    
-                    columnSelect.appendChild(optGroup);
-                });
-            } else {
-                const options = [
-                    {value: 'voltage', text: '电压 (V)'},
-                    {value: 'current', text: '电流 (I)'}
-                ];
-                
-                options.forEach(option => {
-                    const opt = document.createElement('option');
-                    opt.value = option.value;
-                    opt.textContent = option.text;
-                    columnSelect.appendChild(opt);
-                });
-            }
-            
-            if (columnSelect.options.length > 0) {
-                columnSelect.selectedIndex = 0;
-            }
-        }
-
-        // 设置事件监听器
-        function setupEventListeners() {
-            document.getElementById('startMonitorBtn').addEventListener('click', startMonitoring);
-            document.getElementById('stopMonitorBtn').addEventListener('click', stopMonitoring);
-            
-            document.getElementById('columnSelect').addEventListener('change', function() {
-                if (isMonitoring && selectedClientId) {
-                    if (oscilloscopeMode) {
-                        updateOscilloscopeDisplay();
-                    } else {
-                        setTimeout(updateRealtimeChart, 200);
-                    }
-                }
-            });
-            
-            // 监听多相显示开关
-            document.getElementById('showAllPhasesSwitch')?.addEventListener('change', function() {
-                if (currentWorkMode === 'three_phase' && selectedClientId) {
-                    if (this.checked) {
-                        setupThreePhaseToggles();
-                    } else {
-                        hideSinglePhaseToggles();
-                    }
-                    
-                    if (oscilloscopeMode) {
-                        updateOscilloscopeDisplay();
-                    } else if (currentAnalysisData) {
-                        updateChart(currentAnalysisData);
-                    }
-                }
-            });
-        }
-
-        // 设置滑块 
-        function setupSliders() {
-            const maxPointsSlider = document.getElementById('maxPointsSlider');
-            const lineWidthSlider = document.getElementById('lineWidthSlider');
-            const scrollSpeedSlider = document.getElementById('scrollSpeedSlider');
-            const bufferSizeSlider = document.getElementById('bufferSizeSlider');
-            const updateRateSlider = document.getElementById('updateRateSlider');
-            
-            maxPointsSlider.addEventListener('input', function() {
-                const newValue = parseInt(this.value);
-                document.getElementById('maxPointsValue').textContent = newValue;
-
-                if (oscilloscopeMode) {
-                    syncBufferWithDisplayPoints(newValue);
-                }
-            });
-            
-            lineWidthSlider.addEventListener('input', function() {
-                document.getElementById('lineWidthValue').textContent = this.value;
-                updateChartLineWidth(parseInt(this.value));
-            });
-            
-            scrollSpeedSlider.addEventListener('input', function() {
-                scrollSpeed = parseInt(this.value);
-                document.getElementById('scrollSpeedValue').textContent = scrollSpeed;
-                updateSpeedText();
-                updateOscilloscopeInfo();
-
-                if (oscilloscopeMode && isMonitoring) {
-                    restartOscilloscopeUpdate();
-                }
-            });
-
-            const oscilloscopeBgColor = document.getElementById('oscilloscopeBgColor');
-            const resetBgColorBtn = document.getElementById('resetBgColorBtn');
-
-            oscilloscopeBgColor.addEventListener('input', function() {
-                updateOscilloscopeBackgroundColor(this.value);
-            });
-
-            resetBgColorBtn.addEventListener('click', function() {
-                const defaultColor = '#001122';
-                oscilloscopeBgColor.value = defaultColor;
-                updateOscilloscopeBackgroundColor(defaultColor);
-            });
-            
-            bufferSizeSlider.addEventListener('input', function() {
-                const newBufferSize = parseInt(this.value);
-                document.getElementById('bufferSizeValue').textContent = newBufferSize;
-                updateOscilloscopeInfo();
-
-                syncDisplayPointsWithBuffer(newBufferSize);
-
-                if (oscilloscopeMode) {
-                    resizeOscilloscopeBuffer(newBufferSize);
-                }
-
-                bufferSize = newBufferSize;
-            });
-            
-            updateRateSlider.addEventListener('input', function() {
-                updateRate = parseInt(this.value);
-                document.getElementById('updateRateValue').textContent = updateRate;
-            });
-        }
-
-        // 设置示波器模式
-        function setupOscilloscopeMode() {
-            const oscilloscopeToggle = document.getElementById('oscilloscopeMode');
-            const oscilloscopeParams = document.getElementById('oscilloscopeParams');
-            const oscilloscopeControls = document.getElementById('oscilloscopeControls');
-            
-            oscilloscopeToggle.addEventListener('change', function() {
-                oscilloscopeMode = this.checked;
-                
-                if (oscilloscopeMode) {
-                    oscilloscopeParams.classList.add('active');
-                    oscilloscopeControls.classList.add('active');
-                    enableOscilloscopeMode();
-                    showSuccess('示波器模式已启用');
-                } else {
-                    oscilloscopeParams.classList.remove('active');
-                    oscilloscopeControls.classList.remove('active');
-                    disableOscilloscopeMode();
-                    showSuccess('示波器模式已关闭');
-                }
-            });
-        }
-
-        // 其他必要的辅助函数
-        function enableOscilloscopeMode() {
-            const chartContainer = document.getElementById('chartContainer');
-            chartContainer.classList.add('oscilloscope-mode');
-            updateChartForOscilloscope(true);
-            syncDisplayPointsWithBuffer(bufferSize);
-            initializeOscilloscopeDataStructure();
-            startOscilloscopeDemo();
-        }
-
-        function disableOscilloscopeMode() {
-            const chartContainer = document.getElementById('chartContainer');
-            chartContainer.classList.remove('oscilloscope-mode');
-            updateChartForOscilloscope(false);
-            
-            const displayPointsHelp = document.getElementById('displayPointsHelp');
-            displayPointsHelp.textContent = '控制波形显示的精度';
-            
-            if (oscilloscopeInterval) {
-                clearInterval(oscilloscopeInterval);
-                oscilloscopeInterval = null;
-            }
-        }
-
-        function updateConnectionStatus(status, text) {
-            const statusElement = document.getElementById('connectionStatus');
-            const indicatorElement = statusElement.querySelector('.status-indicator');
-            
-            statusElement.className = `connection-status ${status}`;
-            indicatorElement.className = `status-indicator ${status}`;
-            statusElement.querySelector('span').textContent = text;
-        }
-
-        function updateMonitoringStatus(monitoring) {
-            isMonitoring = monitoring;
-            const realtimeIndicator = document.getElementById('realtimeIndicator');
-            const startBtn = document.getElementById('startMonitorBtn');
-            const stopBtn = document.getElementById('stopMonitorBtn');
-            const clientStatus = document.getElementById('clientStatus');
-            
-            if (monitoring) {
-                realtimeIndicator.style.display = 'flex';
-                startBtn.style.display = 'none';
-                stopBtn.style.display = 'block';
-                clientStatus.textContent = '正在监控中...';
-                
-                // 启动定期更新图表
-                if (!oscilloscopeMode && realtimeUpdateInterval) {
-                    clearInterval(realtimeUpdateInterval);
-                }
-                
-                if (!oscilloscopeMode) {
-                    realtimeUpdateInterval = setInterval(() => {
-                        if (isMonitoring) {
-                            updateRealtimeChart();
-                        }
-                    }, 3000); // 每3秒更新一次
-                }
-            } else {
-                realtimeIndicator.style.display = 'none';
-                startBtn.style.display = 'block';
-                stopBtn.style.display = 'none';
-                clientStatus.textContent = '监控已停止';
-                
-                if (realtimeUpdateInterval) {
-                    clearInterval(realtimeUpdateInterval);
-                    realtimeUpdateInterval = null;
-                }
-            }
-        }
-
-        // 显示消息函数
-        function showSuccess(message) {
-            showMessage(message, 'success');
-        }
-
-        function showError(message) {
-            showMessage(message, 'error');
-        }
-
-        function showWarning(message) {
-            showMessage(message, 'warning');
-        }
-
-        function showMessage(message, type = 'info') {
-            const messageArea = document.getElementById('messageArea');
-            const messageClass = {
-                'success': 'success-message',
-                'error': 'error-message',
-                'warning': 'warning-message',
-                'info': 'info-message'
-            }[type] || 'info-message';
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = messageClass;
-            messageDiv.innerHTML = `
-                <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
-                            type === 'success' ? 'check-circle' :
-                            type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
-                ${message}
-                <button type="button" class="btn-close float-end" aria-label="Close" onclick="this.parentElement.remove()"></button>
-            `;
-            
-            const existingMessages = messageArea.children;
-            if (existingMessages.length > 2) {
-                existingMessages[0].remove();
-            }
-            
-            messageArea.appendChild(messageDiv);
-            
-            setTimeout(() => {
-                if (messageDiv.parentElement) {
-                    messageDiv.remove();
-                }
-            }, 5000);
-        }
-
-        // 心跳机制
-        let heartbeatInterval = null;
-
-        function startHeartbeat() {
-            heartbeatInterval = setInterval(() => {
-                if (websocket && websocket.readyState === WebSocket.OPEN) {
-                    websocket.send(JSON.stringify({type: 'ping'}));
-                }
-            }, 30000);
-        }
-
-        function stopHeartbeat() {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-        }
-
-        // 🔥 示波器相关函数（简化版本）
-        function initializeOscilloscopeDataStructure() {
-            console.log('🔧 Initializing oscilloscope data structure');
-            // 示波器数据结构初始化逻辑
-            oscilloscopeData = {
-                voltage: new Array(bufferSize).fill(0),
-                current: new Array(bufferSize).fill(0),
-                time: new Array(bufferSize).fill(0).map((_, i) => i)
-            };
-            
-            // 初始化相位偏移
-            phaseOffsets = {
-                voltage: 0,
-                current: -Math.PI/6 // 30度相位差
-            };
-            
-            // 初始化RMS值
-            lastRMSValues = {
-                voltage: 0.01,
-                current: 10.0
-            };
-            
-            targetRMSValues = { ...lastRMSValues };
-        }
-
-        function startOscilloscopeDemo() {
-            if (oscilloscopeInterval) {
-                clearInterval(oscilloscopeInterval);
-            }
-            
-            console.log('🎬 Starting oscilloscope demo mode');
-            
-            oscilloscopeInterval = setInterval(() => {
-                generateDemoOscilloscopeData();
-                updateOscilloscopeChart();
-            }, scrollSpeed);
-        }
-
-        function generateDemoOscilloscopeData() {
-            const frequency = 50; // 50Hz
-            const samplingRate = 1000 / scrollSpeed; // 基于滚动速度的采样率
-            
-            // 生成新的数据点
-            timeOffset += 1;
-            const t = timeOffset / samplingRate;
-            
-            // 平滑过渡RMS值
-            Object.keys(lastRMSValues).forEach(key => {
-                lastRMSValues[key] += (targetRMSValues[key] - lastRMSValues[key]) * rmsTransitionSpeed;
-            });
-            
-            // 生成正弦波数据
-            const voltageValue = lastRMSValues.voltage * Math.sqrt(2) * Math.sin(2 * Math.PI * frequency * t + phaseOffsets.voltage);
-            const currentValue = lastRMSValues.current * Math.sqrt(2) * Math.sin(2 * Math.PI * frequency * t + phaseOffsets.current);
-            
-            // 添加谐波和噪声
-            const harmonic3V = voltageValue * 0.05 * Math.sin(2 * Math.PI * frequency * 3 * t);
-            const harmonic3I = currentValue * 0.03 * Math.sin(2 * Math.PI * frequency * 3 * t);
-            const noiseV = (Math.random() - 0.5) * voltageValue * 0.02;
-            const noiseI = (Math.random() - 0.5) * currentValue * 0.02;
-            
-            // 滚动数据
-            oscilloscopeData.voltage.shift();
-            oscilloscopeData.current.shift();
-            oscilloscopeData.time.shift();
-            
-            oscilloscopeData.voltage.push(voltageValue + harmonic3V + noiseV);
-            oscilloscopeData.current.push(currentValue + harmonic3I + noiseI);
-            oscilloscopeData.time.push(timeOffset);
-        }
-
-        function updateOscilloscopeChart() {
-            if (!waveChart || !oscilloscopeMode) return;
-            
-            const datasets = [];
-            
-            // 电压数据集
-            if (visiblePhases.has('voltage')) {
-                datasets.push({
-                    label: '电压',
-                    data: oscilloscopeData.voltage.map((y, i) => ({x: i, y: y})),
-                    borderColor: powerColors.oscilloscope.voltage,
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.1,
-                    pointRadius: 0
-                });
-            }
-            
-            // 电流数据集
-            if (visiblePhases.has('current')) {
-                datasets.push({
-                    label: '电流',
-                    data: oscilloscopeData.current.map((y, i) => ({x: i, y: y})),
-                    borderColor: powerColors.oscilloscope.current,
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.1,
-                    pointRadius: 0
-                });
-            }
-            
-            waveChart.data.datasets = datasets;
-            waveChart.update('none');
-        }
-
-        function updateOscilloscopeDisplay() {
-            console.log('🔄 Updating oscilloscope display');
-            // 示波器显示更新逻辑
-            if (oscilloscopeMode) {
-                updateOscilloscopeChart();
-            }
-        }
-
-        function updateChartForOscilloscope(isOscilloscope) {
-            if (!waveChart) return;
-            
-            if (isOscilloscope) {
-                // 示波器模式样式
-                waveChart.options.scales.x.grid.color = 'rgba(0, 255, 136, 0.2)';
-                waveChart.options.scales.y.grid.color = 'rgba(0, 255, 136, 0.2)';
-                waveChart.options.scales.x.ticks.color = '#00ff88';
-                waveChart.options.scales.y.ticks.color = '#00ff88';
-                waveChart.options.scales.x.title.color = '#00ff88';
-                waveChart.options.scales.y.title.color = '#00ff88';
-                waveChart.options.plugins.legend.labels.color = '#00ff88';
-            } else {
-                // 恢复正常模式样式
-                waveChart.options.scales.x.grid.color = 'rgba(0,0,0,0.1)';
-                waveChart.options.scales.y.grid.color = 'rgba(0,0,0,0.1)';
-                waveChart.options.scales.x.ticks.color = '#333';
-                waveChart.options.scales.y.ticks.color = '#333';
-                waveChart.options.scales.x.title.color = '#333';
-                waveChart.options.scales.y.title.color = '#333';
-                waveChart.options.plugins.legend.labels.color = '#333';
-            }
-            
-            waveChart.update('none');
-        }
-
-        function updateSpeedText() {
-            const speedText = document.getElementById('speedText');
-            if (scrollSpeed <= 30) {
-                speedText.textContent = '高速';
-            } else if (scrollSpeed <= 80) {
-                speedText.textContent = '中等速度';
-            } else {
-                speedText.textContent = '低速';
-            }
-        }
-
-        function updateOscilloscopeInfo() {
-            document.getElementById('currentSpeed').textContent = scrollSpeed + 'ms';
-            document.getElementById('currentBuffer').textContent = bufferSize;
-            document.getElementById('currentMode').textContent =
-                currentWorkMode === 'dc' ? '直流' :
-                currentWorkMode === 'three_phase' ? '三相' : '单相';
-        }
-
-        function updateOscilloscopeBackgroundColor(color) {
-            document.documentElement.style.setProperty('--oscilloscope-bg', color);
-            const gridColor = lightenColor(color, 0.3);
-            document.documentElement.style.setProperty('--oscilloscope-grid', gridColor);
-        }
-
-        function lightenColor(color, factor) {
-            const hex = color.replace('#', '');
-            const r = parseInt(hex.substr(0, 2), 16);
-            const g = parseInt(hex.substr(2, 2), 16);
-            const b = parseInt(hex.substr(4, 2), 16);
-
-            const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
-            const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
-            const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
-
-            return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
-        }
-
-        function syncDisplayPointsWithBuffer(bufferSize) {
-            const maxPointsSlider = document.getElementById('maxPointsSlider');
-            const maxPointsValue = document.getElementById('maxPointsValue');
-            const displayPointsHelp = document.getElementById('displayPointsHelp');
-
-            if (oscilloscopeMode) {
-                maxPointsSlider.value = bufferSize;
-                maxPointsValue.textContent = bufferSize;
-                displayPointsHelp.textContent = '示波器模式：与缓冲区大小同步';
-            } else {
-                displayPointsHelp.textContent = '控制波形显示的精度';
-            }
-        }
-
-        function syncBufferWithDisplayPoints(displayPoints) {
-            const bufferSizeSlider = document.getElementById('bufferSizeSlider');
-            const bufferSizeValue = document.getElementById('bufferSizeValue');
-
-            if (oscilloscopeMode) {
-                bufferSizeSlider.value = displayPoints;
-                bufferSizeValue.textContent = displayPoints;
-                bufferSize = displayPoints;
-                resizeOscilloscopeBuffer(displayPoints);
-                updateOscilloscopeInfo();
-            }
-        }
-
+        // 更新图表线条粗细
         function updateChartLineWidth(width) {
             if (waveChart && waveChart.data.datasets) {
                 waveChart.data.datasets.forEach(dataset => {
@@ -2178,139 +1865,62 @@
             }
         }
 
-        function showTransmissionStatus() {
-            const statusEl = document.getElementById('transmissionStatus');
-            statusEl.classList.add('active');
-            setTimeout(() => {
-                statusEl.classList.remove('active');
-            }, 2000);
-        }
-
-        function setupThreePhaseToggles() {
-            const phaseToggles = document.getElementById('phaseToggles');
-            phaseToggles.style.display = 'flex';
-            phaseToggles.innerHTML = `
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input phase-checkbox" type="checkbox" id="voltageAToggle" checked>
-                    <label class="form-check-label" for="voltageAToggle">
-                        <span class="phase-indicator phase-a"></span>A相
-                    </label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input phase-checkbox" type="checkbox" id="voltageBToggle" checked>
-                    <label class="form-check-label" for="voltageBToggle">
-                        <span class="phase-indicator phase-b"></span>B相
-                    </label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input phase-checkbox" type="checkbox" id="voltageCToggle" checked>
-                    <label class="form-check-label" for="voltageCToggle">
-                        <span class="phase-indicator phase-c"></span>C相
-                    </label>
-                </div>
-            `;
-        }
-
-        function hideSinglePhaseToggles() {
-            const phaseToggles = document.getElementById('phaseToggles');
-            phaseToggles.style.display = 'none';
-            phaseToggles.innerHTML = '';
-        }
-
-        function restartOscilloscopeUpdate() {
-            if (oscilloscopeInterval) {
-                clearInterval(oscilloscopeInterval);
+        // 定期心跳检测
+        setInterval(() => {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({ type: 'ping' }));
             }
-            
-            if (oscilloscopeMode) {
-                startOscilloscopeDemo();
-            }
-        }
+        }, 30000); // 每30秒发送一次心跳
 
-        function resizeOscilloscopeBuffer(newSize) {
-            if (oscilloscopeData && oscilloscopeData.voltage) {
-                // 调整缓冲区大小
-                while (oscilloscopeData.voltage.length > newSize) {
-                    oscilloscopeData.voltage.shift();
-                    oscilloscopeData.current.shift();
-                    oscilloscopeData.time.shift();
-                }
-                
-                while (oscilloscopeData.voltage.length < newSize) {
-                    oscilloscopeData.voltage.unshift(0);
-                    oscilloscopeData.current.unshift(0);
-                    oscilloscopeData.time.unshift(0);
-                }
+        // 页面可见性变化时重新连接
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && (!websocket || websocket.readyState !== WebSocket.OPEN)) {
+                updateDebugInfo('页面可见，重新连接WebSocket');
+                connectWebSocket();
             }
-        }
+        });
 
-        function updateTargetRMSValues(realtimeData) {
-            // 更新目标RMS值用于示波器平滑过渡
-            if (realtimeData.voltage !== undefined) {
-                targetRMSValues.voltage = Math.abs(parseFloat(realtimeData.voltage) || 0.01);
-            }
-            if (realtimeData.current !== undefined) {
-                targetRMSValues.current = Math.abs(parseFloat(realtimeData.current) || 10.0);
-            }
-            
-            console.log('🎯 Updated target RMS values:', targetRMSValues);
-        }
-
-        function handleScrollWaveform(scrollData) {
-            console.log('🌊 Handling scroll waveform data:', scrollData);
-            // 处理滚动波形数据
-            if (oscilloscopeMode && scrollData) {
-                // 这里可以添加更复杂的滚动波形处理逻辑
-                updateOscilloscopeChart();
-            }
-        }
-
-        // 🔥 调试功能
-        function debugCurrentStatus() {
-            console.log('=== 🔍 当前状态调试信息 ===');
-            console.log('Selected Client:', selectedClientId);
-            console.log('Is Monitoring:', isMonitoring);
-            console.log('Is Connected:', isConnected);
-            console.log('WebSocket State:', websocket ? websocket.readyState : 'null');
-            console.log('Current Work Mode:', currentWorkMode);
-            console.log('Oscilloscope Mode:', oscilloscopeMode);
-            console.log('=========================');
-            
+        // 🔥 调试和状态显示函数
+        function getSystemStatus() {
             return {
-                selectedClientId,
-                isMonitoring,
-                isConnected,
-                websocketState: websocket ? websocket.readyState : null,
-                currentWorkMode,
-                oscilloscopeMode
+                selectedClientId: selectedClientId,
+                isMonitoring: isMonitoring,
+                isConnected: isConnected,
+                smoothScrollMode: smoothScrollMode,
+                scrollWindowSize: scrollWindowSize,
+                updateInterval: updateInterval,
+                currentRMSValues: currentRMSValues,
+                bufferSizes: {
+                    voltage: waveformBuffer.voltage.length,
+                    current: waveformBuffer.current.length,
+                    timeAxis: waveformBuffer.timeAxis.length
+                },
+                timeOffset: timeOffset
             };
         }
 
-        // 🔥 手动触发监控（用于调试）
-        function manualStartMonitoring() {
-            console.log('🔧 Manual monitoring trigger');
-            if (selectedClientId && websocket && websocket.readyState === WebSocket.OPEN) {
-                websocket.send(JSON.stringify({
-                    type: 'start_monitoring',
-                    data_source_client: selectedClientId,
-                    scroll_mode: false
-                }));
-                console.log('✅ Manual monitoring request sent');
-            } else {
-                console.error('❌ Cannot start monitoring:', { selectedClientId, websocketReady: websocket && websocket.readyState === WebSocket.OPEN });
-            }
+        function debugSmoothScroll() {
+            console.log('=== 🔍 平滑滚动调试信息 ===');
+            const status = getSystemStatus();
+            Object.keys(status).forEach(key => {
+                console.log(`${key}:`, status[key]);
+            });
+            console.log('=========================');
+            return status;
         }
 
-        // 将调试函数暴露到全局作用域
-        window.debugCurrentStatus = debugCurrentStatus;
-        window.manualStartMonitoring = manualStartMonitoring;
+        // 暴露调试函数到全局
+        window.getSystemStatus = getSystemStatus;
+        window.debugSmoothScroll = debugSmoothScroll;
+        window.forceUpdateRMS = function(vRms, iRms) {
+            currentRMSValues.voltage_rms = vRms || 220;
+            currentRMSValues.current_rms = iRms || 10;
+            updateDebugInfo(`手动设置RMS值: V=${vRms}V, I=${iRms}A`);
+        };
 
-        // 初始化显示
-        updateSpeedText();
-        updateOscilloscopeInfo();
-
-        console.log('🚀 Waveform display script loaded successfully!');
-
+        console.log('🚀 改进的RMS波形显示系统加载完成!');
+        console.log('💡 使用 debugSmoothScroll() 查看调试信息');
+        console.log('🔧 使用 forceUpdateRMS(220, 10) 手动设置RMS值进行测试');
     </script>
 </body>
 </html>

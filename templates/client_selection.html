@@ -221,12 +221,12 @@
             color: #155724;
         }
 
-        .client-status.offline {
+        .client-status.offline, .client-status.disconnected {
             background: #f8d7da;
             color: #721c24;
         }
 
-        .client-status.inactive {
+        .client-status.inactive, .client-status.registered {
             background: #fff3cd;
             color: #856404;
         }
@@ -242,11 +242,11 @@
             background: #28a745;
         }
 
-        .status-dot.offline {
+        .status-dot.offline, .status-dot.disconnected {
             background: #dc3545;
         }
 
-        .status-dot.inactive {
+        .status-dot.inactive, .status-dot.registered {
             background: #ffc107;
         }
 
@@ -396,6 +396,22 @@
             color: white;
         }
 
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .debug-title {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
         @media (max-width: 768px) {
             .clients-grid {
                 grid-template-columns: 1fr;
@@ -483,11 +499,16 @@
                         <option value="">全部状态</option>
                         <option value="connected">在线</option>
                         <option value="offline">离线</option>
+                        <option value="disconnected">断开连接</option>
+                        <option value="registered">已注册</option>
                         <option value="inactive">非活跃</option>
                     </select>
                 </div>
                 <button class="refresh-btn" onclick="refreshClients()">
                     <i class="fas fa-sync-alt me-2"></i>刷新
+                </button>
+                <button class="btn btn-info" onclick="toggleDebug()">
+                    <i class="fas fa-bug me-2"></i>调试
                 </button>
             </div>
 
@@ -498,6 +519,12 @@
                     <h5>正在加载客户端列表...</h5>
                     <p>请稍候，系统正在获取可用的电力数据源</p>
                 </div>
+            </div>
+
+            <!-- 调试面板 -->
+            <div class="debug-panel" id="debugPanel" style="display: none;">
+                <div class="debug-title">🔍 调试信息</div>
+                <div id="debugContent">调试面板已启用，等待数据...</div>
             </div>
         </div>
     </div>
@@ -514,6 +541,8 @@
         let clients = [];
         let selectedClientId = null;
         let webClientId = 'web_' + Math.random().toString(36).substr(2, 9);
+        let debugMode = false;
+        let lastDebugUpdate = '';
 
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -521,7 +550,58 @@
             initializeWebSocket();
             loadUserInfo();
             setupFilters();
+            
+            // 定期通过REST API获取客户端列表
+            setInterval(fetchClientList, 5000);
         });
+
+        // 调试功能
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugPanel = document.getElementById('debugPanel');
+            debugPanel.style.display = debugMode ? 'block' : 'none';
+            
+            if (debugMode) {
+                updateDebugInfo('调试模式已启用');
+            }
+        }
+
+        function updateDebugInfo(message) {
+            if (!debugMode) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const debugContent = document.getElementById('debugContent');
+            lastDebugUpdate = `[${timestamp}] ${message}`;
+            
+            if (debugContent) {
+                debugContent.innerHTML += `<br>[${timestamp}] ${message}`;
+                // 保持最新的50行
+                const lines = debugContent.innerHTML.split('<br>');
+                if (lines.length > 50) {
+                    debugContent.innerHTML = lines.slice(-50).join('<br>');
+                }
+            }
+        }
+
+        // 通过REST API获取客户端列表
+        async function fetchClientList() {
+            try {
+                updateDebugInfo('正在通过REST API获取客户端列表...');
+                
+                const response = await fetch('/api/data_source_clients');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateDebugInfo(`REST API返回 ${data.clients.length} 个客户端`);
+                    updateClientList(data.clients);
+                } else {
+                    updateDebugInfo(`REST API错误: ${data.message || '未知错误'}`);
+                }
+            } catch (error) {
+                updateDebugInfo(`REST API请求失败: ${error.message}`);
+                console.error('Failed to fetch client list:', error);
+            }
+        }
 
         // 检查登录状态
         function checkLoginStatus() {
@@ -572,21 +652,25 @@
             const wsUrl = `${protocol}//${window.location.host}/ws/${webClientId}`;
             
             try {
+                updateDebugInfo(`尝试连接WebSocket: ${wsUrl}`);
                 websocket = new WebSocket(wsUrl);
                 
                 websocket.onopen = function(event) {
                     console.log('WebSocket connected');
+                    updateDebugInfo('WebSocket连接成功');
                     updateConnectionStatus('connected');
                     requestClientList();
                 };
                 
                 websocket.onmessage = function(event) {
                     const message = JSON.parse(event.data);
+                    updateDebugInfo(`收到WebSocket消息: ${message.type}`);
                     handleWebSocketMessage(message);
                 };
                 
                 websocket.onclose = function(event) {
                     console.log('WebSocket disconnected');
+                    updateDebugInfo(`WebSocket断开连接: code=${event.code}, reason=${event.reason}`);
                     updateConnectionStatus('disconnected');
                     // 3秒后重连
                     setTimeout(initializeWebSocket, 3000);
@@ -594,11 +678,13 @@
                 
                 websocket.onerror = function(error) {
                     console.error('WebSocket error:', error);
+                    updateDebugInfo(`WebSocket错误: ${error}`);
                     updateConnectionStatus('disconnected');
                 };
                 
             } catch (error) {
                 console.error('WebSocket connection failed:', error);
+                updateDebugInfo(`WebSocket连接失败: ${error.message}`);
                 updateConnectionStatus('disconnected');
             }
         }
@@ -607,19 +693,21 @@
         function handleWebSocketMessage(message) {
             switch (message.type) {
                 case 'client_list_update':
+                    updateDebugInfo(`WebSocket客户端列表更新: ${message.clients.length} 个客户端`);
                     updateClientList(message.clients);
                     break;
                 case 'pong':
-                    console.log('Received pong');
+                    updateDebugInfo('收到WebSocket pong响应');
                     break;
                 default:
-                    console.log('Unknown message type:', message.type);
+                    updateDebugInfo(`未知WebSocket消息类型: ${message.type}`);
             }
         }
 
         // 请求客户端列表
         function requestClientList() {
             if (websocket && websocket.readyState === WebSocket.OPEN) {
+                updateDebugInfo('通过WebSocket请求客户端列表');
                 websocket.send(JSON.stringify({type: 'get_client_list'}));
             }
         }
@@ -643,9 +731,20 @@
         function updateClientList(clientData) {
             clients = clientData || [];
             
+            updateDebugInfo(`更新客户端列表: ${clients.length} 个客户端`);
+            
+            // 调试：打印客户端详细信息
+            if (debugMode && clients.length > 0) {
+                clients.forEach((client, index) => {
+                    updateDebugInfo(`客户端 ${index + 1}: ${client.id}, 状态: ${client.status}, 类型: ${client.power_type}`);
+                });
+            }
+            
             // 更新统计信息
             const totalClients = clients.length;
-            const onlineClients = clients.filter(c => c.status === 'connected').length;
+            const onlineClients = clients.filter(c => 
+                c.status === 'connected' || c.status === 'registered'
+            ).length;
             
             document.getElementById('totalClients').textContent = totalClients;
             document.getElementById('onlineClients').textContent = onlineClients;
@@ -661,12 +760,15 @@
             // 应用筛选
             const filteredClients = applyFilters(clients);
             
+            updateDebugInfo(`筛选后客户端数量: ${filteredClients.length}`);
+            
             if (filteredClients.length === 0) {
                 grid.innerHTML = `
                     <div class="no-clients">
                         <i class="fas fa-server"></i>
                         <h5>暂无客户端</h5>
                         <p>当前没有符合条件的电力数据源客户端</p>
+                        <small>总客户端数: ${clients.length}</small>
                     </div>
                 `;
                 return;
@@ -675,7 +777,7 @@
             grid.innerHTML = filteredClients.map(client => {
                 const powerTypeClass = getPowerTypeClass(client.power_type);
                 const statusClass = client.status;
-                const isOffline = client.status !== 'connected';
+                const isOffline = client.status === 'offline' || client.status === 'disconnected';
                 
                 return `
                     <div class="client-card ${powerTypeClass} ${isOffline ? 'offline' : ''}" 
@@ -696,19 +798,19 @@
                         <div class="client-info-grid">
                             <div class="info-item">
                                 <div class="info-label">连接时间</div>
-                                <div class="info-value">${client.connected_time}</div>
+                                <div class="info-value">${client.connected_time || '未知'}</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">数据量</div>
-                                <div class="info-value">${client.data_count.toLocaleString()}</div>
+                                <div class="info-label">批次数量</div>
+                                <div class="info-value">${(client.batch_count || client.data_count || 0).toLocaleString()}</div>
                             </div>
                             <div class="info-item">
                                 <div class="info-label">最后更新</div>
-                                <div class="info-value">${client.last_update}</div>
+                                <div class="info-value">${client.last_update || '无'}</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">缓冲区</div>
-                                <div class="info-value">${client.buffer_size || 0}</div>
+                                <div class="info-label">工作模式</div>
+                                <div class="info-value">${client.work_mode || '未设置'}</div>
                             </div>
                         </div>
                         
@@ -784,6 +886,8 @@
             switch(status) {
                 case 'connected': return '在线';
                 case 'offline': return '离线';
+                case 'disconnected': return '断开连接';
+                case 'registered': return '已注册';
                 case 'inactive': return '非活跃';
                 default: return '未知';
             }
@@ -792,6 +896,8 @@
         // 选择客户端
         function selectClient(clientId) {
             selectedClientId = clientId;
+            
+            updateDebugInfo(`选择客户端: ${clientId}`);
             
             // 更新卡片选中状态
             document.querySelectorAll('.client-card').forEach(card => {
@@ -808,6 +914,8 @@
                 return;
             }
             
+            updateDebugInfo(`进入波形显示: ${clientId}`);
+            
             // 保存选择的客户端ID
             sessionStorage.setItem('selectedClientId', clientId);
             sessionStorage.setItem('analysisMode', 'waveform');
@@ -823,6 +931,8 @@
                 return;
             }
             
+            updateDebugInfo(`进入数据分析: ${clientId}`);
+            
             // 保存选择的客户端ID
             sessionStorage.setItem('selectedClientId', clientId);
             sessionStorage.setItem('analysisMode', 'analysis');
@@ -833,7 +943,13 @@
 
         // 刷新客户端列表
         function refreshClients() {
+            updateDebugInfo('手动刷新客户端列表');
+            
+            // 通过WebSocket请求
             requestClientList();
+            
+            // 也通过REST API请求
+            fetchClientList();
             
             // 显示刷新动画
             const refreshBtn = event.currentTarget;
@@ -862,7 +978,7 @@
             }
         }
 
-        // 定期刷新客户端列表
+        // 定期通过WebSocket请求客户端列表
         setInterval(() => {
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 requestClientList();
