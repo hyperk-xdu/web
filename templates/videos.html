@@ -104,6 +104,35 @@
             font-size: 14px;
         }
 
+        /* 预加载指示器 */
+        .preload-indicator {
+            position: fixed;
+            top: 76px;
+            left: 20px;
+            background: rgba(7, 193, 96, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1500;
+            transform: translateY(-100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preload-indicator.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .preload-indicator i {
+            font-size: 12px;
+            animation: spin 1s linear infinite;
+        }
+
         /* 视频播放器 */
         .video-player-section {
             background: #fff;
@@ -236,6 +265,20 @@
             color: #333;
         }
 
+        /* 预加载状态 */
+        .video-card.preloaded::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 12px;
+            height: 12px;
+            background: #07c160;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
         /* 视频网格 */
         .video-grid {
             display: grid;
@@ -258,6 +301,7 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            position: relative;
         }
 
         .video-card:hover {
@@ -274,6 +318,12 @@
         .video-card.selected {
             border-color: #07c160;
             background: #f8fff8;
+        }
+
+        .video-card.error {
+            border-color: #fa5151;
+            background: #fff5f5;
+            opacity: 0.7;
         }
 
         .video-thumbnail {
@@ -500,6 +550,12 @@
                 max-width: none;
                 text-align: center;
             }
+
+            .preload-indicator {
+                left: 16px;
+                font-size: 11px;
+                padding: 6px 10px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -632,6 +688,12 @@
         </div>
     </header>
 
+    <!-- 预加载指示器 -->
+    <div class="preload-indicator" id="preloadIndicator">
+        <i class="fas fa-spinner"></i>
+        <span>正在预加载视频...</span>
+    </div>
+
     <!-- 主容器 -->
     <div class="container">
         <!-- 页面标题 -->
@@ -654,10 +716,10 @@
             </div>
             
             <div class="video-info">
-                <div class="video-title" id="currentVideoTitle">请选择要播放的视频</div>
+                <div class="video-title" id="currentVideoTitle">正在加载视频...</div>
                 <div class="video-meta" id="currentVideoMeta">
-                    <span><i class="fas fa-clock"></i> 暂无信息</span>
-                    <span><i class="fas fa-file"></i> 暂无信息</span>
+                    <span><i class="fas fa-clock"></i> 准备中...</span>
+                    <span><i class="fas fa-file"></i> 加载中...</span>
                 </div>
             </div>
 
@@ -716,21 +778,616 @@
     </div>
 
     <script>
-        // 全局变量
+        // 全局变量 - 增加错误处理状态
         let currentVideo = null;
         let videoList = [];
+        let preloadedVideos = new Set();
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let autoplayEnabled = true;
         let userHasInteracted = false;
         let thumbnailCache = new Map();
+        let isPreloading = false;
+        let isLoadingVideo = false; // 新增：防止并发加载
+        let systemHealthy = true;
 
-        // 页面初始化
+        // 页面初始化 - 立即开始预加载
         document.addEventListener('DOMContentLoaded', function() {
-            loadVideoList();
+            console.log('🚀 开始快速加载视频列表和预加载...');
+            startPreloadProcess();
             setupVideoPlayerEvents();
             setupMobileOptimizations();
             setupUserInteractionTracking();
+            setupErrorHandling();
         });
+
+        // 设置全局错误处理
+        function setupErrorHandling() {
+            window.addEventListener('error', function(event) {
+                console.error('全局错误:', event.error);
+                
+                if (event.error && event.error.message) {
+                    if (event.error.message.includes('视频') || event.error.message.includes('video')) {
+                        showNotification('视频播放出现问题，正在尝试恢复...', 'error');
+                        
+                        // 重置加载状态
+                        isLoadingVideo = false;
+                        
+                        // 延迟重试
+                        setTimeout(() => {
+                            if (currentVideo && systemHealthy) {
+                                loadVideo(currentVideo.filename, currentVideo.index);
+                            }
+                        }, 3000);
+                    }
+                }
+            });
+
+            window.addEventListener('unhandledrejection', function(event) {
+                console.error('未处理的Promise拒绝:', event.reason);
+                
+                if (event.reason && event.reason.message) {
+                    showNotification(`操作失败: ${event.reason.message}`, 'error');
+                } else {
+                    showNotification('操作失败，请重试', 'error');
+                }
+                
+                // 重置状态
+                isLoadingVideo = false;
+            });
+        }
+
+        // 修复：改进视频加载函数，确保索引和视频文件的正确映射
+        async function loadVideo(filename, index) {
+            // 防止并发加载
+            if (isLoadingVideo) {
+                console.log('视频正在加载中，跳过重复请求');
+                return;
+            }
+            
+            isLoadingVideo = true;
+            
+            try {
+                const videoPlayer = document.getElementById('videoPlayer');
+                const videoSource = document.getElementById('videoSource');
+                const currentVideoTitle = document.getElementById('currentVideoTitle');
+                const currentVideoMeta = document.getElementById('currentVideoMeta');
+                
+                // 验证索引和视频文件的有效性
+                if (!filename || index < 0 || index >= videoList.length) {
+                    throw new Error(`无效的视频参数: filename=${filename}, index=${index}`);
+                }
+                
+                // 确保索引对应的视频文件名匹配
+                const expectedVideo = videoList[index];
+                if (!expectedVideo || expectedVideo.filename !== filename) {
+                    console.error(`视频索引不匹配: 期望=${expectedVideo?.filename}, 实际=${filename}`);
+                    // 尝试通过文件名查找正确的索引
+                    const correctIndex = videoList.findIndex(v => v.filename === filename);
+                    if (correctIndex !== -1) {
+                        index = correctIndex;
+                        console.log(`已修正索引为: ${index}`);
+                    } else {
+                        throw new Error(`未找到视频文件: ${filename}`);
+                    }
+                }
+                
+                // 验证视频文件是否可用
+                const verifyResponse = await fetch(`/api/verify_video/${encodeURIComponent(filename)}`);
+                const verifyData = await verifyResponse.json();
+                
+                if (!verifyData.valid) {
+                    throw new Error(verifyData.error || '视频文件无效');
+                }
+                
+                const videoUrl = `/api/stream_video/${encodeURIComponent(filename)}`;
+                
+                // 暂停当前视频
+                if (!videoPlayer.paused) {
+                    videoPlayer.pause();
+                }
+                
+                // 设置加载状态UI
+                currentVideoTitle.textContent = '正在加载视频...';
+                currentVideoMeta.innerHTML = `
+                    <span><i class="fas fa-spinner fa-spin"></i> 加载中...</span>
+                    <span><i class="fas fa-clock"></i> 请稍候...</span>
+                `;
+                
+                // 更新视频源
+                videoSource.src = videoUrl;
+                videoPlayer.load();
+                
+                // 等待视频元数据加载完成
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('视频加载超时'));
+                    }, 15000); // 15秒超时
+                    
+                    const onLoadedMetadata = () => {
+                        clearTimeout(timeout);
+                        videoPlayer.removeEventListener('loadedmetadata', onLoadedMetadata);
+                        videoPlayer.removeEventListener('error', onError);
+                        resolve();
+                    };
+                    
+                    const onError = (e) => {
+                        clearTimeout(timeout);
+                        videoPlayer.removeEventListener('loadedmetadata', onLoadedMetadata);
+                        videoPlayer.removeEventListener('error', onError);
+                        reject(new Error(`视频加载失败: ${e.target.error?.message || '未知错误'}`));
+                    };
+                    
+                    videoPlayer.addEventListener('loadedmetadata', onLoadedMetadata);
+                    videoPlayer.addEventListener('error', onError);
+                });
+                
+                // 更新视频信息
+                const video = videoList[index];
+                currentVideoTitle.textContent = video.name || video.filename;
+                
+                if (video.size && video.modified) {
+                    currentVideoMeta.innerHTML = `
+                        <span><i class="fas fa-file"></i> ${formatFileSize(video.size)}</span>
+                        <span><i class="fas fa-calendar"></i> ${formatDate(new Date(video.modified))}</span>
+                    `;
+                } else {
+                    currentVideoMeta.innerHTML = `
+                        <span><i class="fas fa-play"></i> 准备播放</span>
+                        <span><i class="fas fa-check"></i> 加载完成</span>
+                    `;
+                }
+                
+                // 更新选中状态
+                document.querySelectorAll('.video-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                
+                const selectedCard = document.querySelector(`[data-index="${index}"]`);
+                if (selectedCard) {
+                    selectedCard.classList.add('selected');
+                }
+                
+                currentVideo = { filename, index };
+                
+                // 如果视频已预加载，给用户反馈
+                if (preloadedVideos.has(filename)) {
+                    showNotification('视频已预加载完成，开始播放', 'success');
+                }
+                
+                // 自动播放逻辑
+                if (autoplayEnabled) {
+                    try {
+                        await attemptAutoplay(videoPlayer);
+                    } catch (error) {
+                        console.log('自动播放受限:', error.message);
+                        showNotification(`已加载: ${video.name || video.filename} - 请点击播放`, 'success');
+                    }
+                } else {
+                    showNotification(`已加载: ${video.name || video.filename}`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('加载视频失败:', error);
+                
+                // 恢复UI状态
+                const currentVideoTitle = document.getElementById('currentVideoTitle');
+                const currentVideoMeta = document.getElementById('currentVideoMeta');
+                
+                currentVideoTitle.textContent = '视频加载失败';
+                currentVideoMeta.innerHTML = `
+                    <span><i class="fas fa-exclamation-triangle"></i> 加载失败</span>
+                    <span><i class="fas fa-info-circle"></i> ${error.message}</span>
+                `;
+                
+                showNotification(`加载失败: ${error.message}`, 'error');
+                
+                // 清除选中状态，标记错误卡片
+                document.querySelectorAll('.video-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                
+                const errorCard = document.querySelector(`[data-index="${index}"]`);
+                if (errorCard) {
+                    errorCard.classList.add('error');
+                }
+                
+                currentVideo = null;
+                systemHealthy = false;
+                
+                // 延迟恢复系统状态
+                setTimeout(() => {
+                    systemHealthy = true;
+                }, 5000);
+                
+            } finally {
+                isLoadingVideo = false;
+            }
+        }
+
+        // 改进预加载流程错误处理
+        async function startPreloadProcess() {
+            try {
+                showPreloadIndicator(true, '正在快速加载...');
+                
+                // 第1步：立即获取并显示基础视频列表（最快速度）
+                const quickVideos = await fetchQuickVideoList();
+                if (quickVideos && quickVideos.length > 0) {
+                    videoList = quickVideos;
+                    renderQuickVideoGrid(quickVideos);
+                    
+                    // 立即加载第一个视频
+                    if (quickVideos.length > 0) {
+                        try {
+                            await loadVideo(quickVideos[0].filename, 0);
+                        } catch (error) {
+                            console.error('加载首个视频失败:', error);
+                            showNotification('首个视频加载失败，已跳过', 'error');
+                        }
+                    }
+                    
+                    console.log('✅ 快速列表显示完成:', quickVideos.length, '个视频');
+                    showPreloadIndicator(true, '开始预加载视频...');
+                    
+                    // 后续步骤不阻塞UI
+                    Promise.allSettled([
+                        // 第2步：并发预加载前4个视频
+                        Promise.allSettled(quickVideos.slice(0, 4).map((video, index) => 
+                            preloadVideoChunk(video.filename, index)
+                        )),
+                        // 第3步：获取完整视频信息
+                        fetchFullVideoList()
+                    ]).then(([preloadResults, fullVideoData]) => {
+                        // 更新完整信息
+                        if (fullVideoData.status === 'fulfilled' && fullVideoData.value) {
+                            videoList = fullVideoData.value;
+                            updateVideoGridWithFullInfo(fullVideoData.value);
+                            console.log('✅ 完整信息更新完成');
+                        }
+                        
+                        // 显示预加载结果
+                        if (preloadResults.status === 'fulfilled') {
+                            const successCount = preloadResults.value.filter(result => result.status === 'fulfilled').length;
+                            console.log(`✅ 预加载完成: ${successCount}/${preloadResults.value.length} 个视频`);
+                            if (successCount > 0) {
+                                showNotification(`预加载完成！前${successCount}个视频可流畅播放`, 'success');
+                            }
+                        }
+                        
+                        showPreloadIndicator(false);
+                    });
+                    
+                } else {
+                    // 快速列表失败，使用原始方式
+                    console.warn('⚠️ 快速列表获取失败，使用原始方式');
+                    showPreloadIndicator(false);
+                    await loadVideoListNormally();
+                }
+                
+            } catch (error) {
+                console.error('❌ 预加载流程失败:', error);
+                showPreloadIndicator(false);
+                showNotification('预加载失败，使用标准加载模式', 'error');
+                await loadVideoListNormally();
+            }
+        }
+
+        // 获取快速视频列表
+        async function fetchQuickVideoList() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch('/api/video_quick_info?limit=10', {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.videos && data.videos.length > 0) {
+                    return data.videos;
+                }
+                return null;
+            } catch (error) {
+                console.error('快速视频列表获取失败:', error);
+                return null;
+            }
+        }
+
+        // 获取完整视频列表
+        async function fetchFullVideoList() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const response = await fetch('/api/get_video_list', {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.videos) {
+                    return data.videos;
+                }
+                return null;
+            } catch (error) {
+                console.error('完整视频列表获取失败:', error);
+                return null;
+            }
+        }
+
+        // 预加载视频数据块
+        async function preloadVideoChunk(filename, index) {
+            try {
+                console.log(`🔄 开始预加载: ${filename}`);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const response = await fetch(`/api/preload_chunk/${encodeURIComponent(filename)}?chunk_size=524288`, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    // 读取数据但不存储（浏览器会自动缓存）
+                    await response.blob();
+                    preloadedVideos.add(filename);
+                    
+                    // 更新视频卡片状态
+                    const videoCard = document.querySelector(`[data-index="${index}"]`);
+                    if (videoCard) {
+                        videoCard.classList.add('preloaded');
+                    }
+                    
+                    console.log(`✅ ${filename} 预加载完成`);
+                    return true;
+                } else {
+                    console.warn(`⚠️ ${filename} 预加载失败: ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                console.warn(`❌ ${filename} 预加载出错:`, error);
+                return false;
+            }
+        }
+
+        // 渲染快速视频网格（基础信息）
+        function renderQuickVideoGrid(videos) {
+            const videoGrid = document.getElementById('videoGrid');
+            const emptyState = document.getElementById('emptyState');
+            const loading = document.getElementById('loading');
+            
+            loading.style.display = 'none';
+            emptyState.style.display = 'none';
+            videoGrid.style.display = 'grid';
+            videoGrid.innerHTML = '';
+
+            videos.forEach((video, index) => {
+                const card = createQuickVideoCard(video, index);
+                videoGrid.appendChild(card);
+            });
+        }
+
+        // 创建快速视频卡片（基础信息）
+        function createQuickVideoCard(video, index) {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.setAttribute('data-index', index);
+            card.setAttribute('data-filename', video.filename);
+            
+            let clickTimeout;
+            card.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // 验证数据一致性
+                const cardFilename = card.getAttribute('data-filename');
+                const cardIndex = parseInt(card.getAttribute('data-index'));
+                
+                if (cardFilename !== video.filename || cardIndex !== index) {
+                    console.error('视频卡片数据不一致，正在重新加载列表...');
+                    refreshVideoList();
+                    return;
+                }
+                
+                if (isLoadingVideo) {
+                    showNotification('视频正在加载中，请稍候...', 'error');
+                    return;
+                }
+                
+                if (clickTimeout) {
+                    clearTimeout(clickTimeout);
+                }
+                
+                clickTimeout = setTimeout(() => {
+                    loadVideoAndScroll(video.filename, index);
+                }, 100);
+            };
+
+            // 选择图标
+            let icon = 'play-circle';
+            const filename = video.filename.toLowerCase();
+            if (filename.includes('雷达') || filename.includes('radar')) {
+                icon = 'satellite-dish';
+            } else if (filename.includes('导航') || filename.includes('navigation')) {
+                icon = 'route';
+            } else if (filename.includes('观察') || filename.includes('surveillance')) {
+                icon = 'eye';
+            } else if (filename.includes('港湾') || filename.includes('harbor')) {
+                icon = 'anchor';
+            }
+
+            card.innerHTML = `
+                <div class="video-thumbnail loading">
+                    <i class="fas fa-${icon}"></i>
+                </div>
+                <div class="video-card-info">
+                    <div class="video-name" title="${video.filename}">${video.name || video.filename}</div>
+                    <div class="video-details">
+                        <span>加载中...</span>
+                        <span>准备中...</span>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // 更新视频网格完整信息
+        function updateVideoGridWithFullInfo(fullVideos) {
+            const videoCards = document.querySelectorAll('.video-card');
+            
+            fullVideos.forEach((video, index) => {
+                const card = videoCards[index];
+                if (card) {
+                    // 验证数据一致性
+                    const cardFilename = card.getAttribute('data-filename');
+                    if (cardFilename !== video.filename) {
+                        console.warn(`数据不一致: ${cardFilename} vs ${video.filename}`);
+                        return;
+                    }
+                    
+                    // 更新详细信息
+                    const detailsDiv = card.querySelector('.video-details');
+                    if (detailsDiv) {
+                        const sizeText = formatFileSize(video.size || 0);
+                        const modifiedText = video.modified ? formatDate(new Date(video.modified)) : '未知';
+                        detailsDiv.innerHTML = `
+                            <span>${sizeText}</span>
+                            <span>${modifiedText}</span>
+                        `;
+                    }
+                    
+                    // 异步生成缩略图
+                    const thumbnailDiv = card.querySelector('.video-thumbnail');
+                    if (thumbnailDiv && thumbnailDiv.classList.contains('loading')) {
+                        generateVideoThumbnail(`/api/stream_video/${encodeURIComponent(video.filename)}`, video.filename)
+                            .then(thumbnailUrl => {
+                                if (thumbnailUrl && thumbnailDiv.parentElement === card) {
+                                    const img = document.createElement('img');
+                                    img.src = thumbnailUrl;
+                                    img.alt = video.filename;
+                                    img.onload = () => {
+                                        thumbnailDiv.innerHTML = '';
+                                        thumbnailDiv.appendChild(img);
+                                        thumbnailDiv.classList.remove('loading');
+                                    };
+                                } else {
+                                    thumbnailDiv.classList.remove('loading');
+                                }
+                            });
+                    }
+                }
+            });
+        }
+
+        // 显示预加载指示器
+        function showPreloadIndicator(show, message = '正在预加载视频...') {
+            const indicator = document.getElementById('preloadIndicator');
+            const span = indicator.querySelector('span');
+            
+            if (show) {
+                span.textContent = message;
+                indicator.classList.add('show');
+                isPreloading = true;
+            } else {
+                indicator.classList.remove('show');
+                isPreloading = false;
+            }
+        }
+
+        // 原始加载方式（后备方案）
+        async function loadVideoListNormally() {
+            try {
+                showLoading(true);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+                
+                const response = await fetch('/api/get_video_list', {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    videoList = data.videos || [];
+                    
+                    // 验证视频列表数据完整性
+                    videoList = videoList.filter(video => {
+                        if (!video.filename || typeof video.filename !== 'string') {
+                            console.warn('发现无效视频数据，已过滤:', video);
+                            return false;
+                        }
+                        return true;
+                    });
+                    
+                    await renderVideoGrid();
+                    
+                    if (videoList.length > 0) {
+                        // 确保使用第一个有效视频
+                        const firstVideo = videoList[0];
+                        await loadVideo(firstVideo.filename, 0);
+                    } else {
+                        showEmptyState();
+                        showNotification('视频目录为空', 'error');
+                    }
+                    
+                    let message = `成功加载 ${videoList.length} 个视频文件`;
+                    if (data.failed_files && data.failed_files.length > 0) {
+                        message += `, ${data.failed_files.length} 个文件失败`;
+                    }
+                    showNotification(message, 'success');
+                } else {
+                    throw new Error(data.message || '获取视频列表失败');
+                }
+                
+            } catch (error) {
+                console.error('Error loading video list:', error);
+                
+                let errorMessage = '加载视频列表失败';
+                if (error.name === 'AbortError') {
+                    errorMessage = '请求超时，请检查网络连接';
+                } else if (error.message) {
+                    errorMessage = `加载失败: ${error.message}`;
+                }
+                
+                showNotification(errorMessage, 'error');
+                showEmptyState();
+                
+                // 重试逻辑
+                setTimeout(() => {
+                    showNotification('将在5秒后自动重试...', 'error');
+                    setTimeout(() => {
+                        if (systemHealthy) {
+                            loadVideoListNormally();
+                        }
+                    }, 5000);
+                }, 2000);
+                
+            } finally {
+                showLoading(false);
+            }
+        }
 
         // 用户交互跟踪（解决浏览器自动播放限制）
         function setupUserInteractionTracking() {
@@ -741,6 +1398,7 @@
                 interactionEvents.forEach(event => {
                     document.removeEventListener(event, markUserInteraction);
                 });
+                console.log('✅ 用户已交互，可以自动播放');
             }
             
             interactionEvents.forEach(event => {
@@ -782,7 +1440,6 @@
         // 生成视频缩略图
         async function generateVideoThumbnail(videoUrl, filename) {
             try {
-                // 检查缓存
                 if (thumbnailCache.has(filename)) {
                     return thumbnailCache.get(filename);
                 }
@@ -800,42 +1457,29 @@
                     video.addEventListener('loadedmetadata', function() {
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
-                        
-                        video.currentTime = 1; // 获取第1秒的帧
+                        video.currentTime = 1;
                     });
                     
                     video.addEventListener('seeked', function() {
                         try {
                             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                             const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
-                            
-                            // 缓存缩略图
                             thumbnailCache.set(filename, thumbnailUrl);
                             resolve(thumbnailUrl);
                         } catch (error) {
-                            console.warn('无法生成缩略图:', filename, error);
                             resolve(null);
                         }
                     });
                     
                     video.addEventListener('error', function(e) {
-                        console.warn('视频加载失败，无法生成缩略图:', filename, e);
                         resolve(null);
                     });
                     
-                    // 设置超时
-                    setTimeout(() => {
-                        if (!thumbnailCache.has(filename)) {
-                            console.warn('缩略图生成超时:', filename);
-                            resolve(null);
-                        }
-                    }, 5000);
-                    
+                    setTimeout(() => resolve(null), 5000);
                     video.src = videoUrl;
                 });
                 
             } catch (error) {
-                console.warn('生成缩略图时出错:', filename, error);
                 return null;
             }
         }
@@ -883,41 +1527,12 @@
             return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
         }
 
-        // 加载视频列表
-        async function loadVideoList() {
-            try {
-                showLoading(true);
-                
-                const response = await fetch('/api/get_video_list');
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    videoList = data.videos || [];
-                    renderVideoGrid();
-                    if (videoList.length > 0) {
-                        loadVideo(videoList[0].filename, 0);
-                    }
-                    showNotification(`成功加载 ${videoList.length} 个视频文件`, 'success');
-                } else {
-                    showNotification('获取视频列表失败', 'error');
-                    showEmptyState();
-                }
-                
-            } catch (error) {
-                console.error('Error loading video list:', error);
-                showNotification('网络连接错误，请稍后重试', 'error');
-                showEmptyState();
-            } finally {
-                showLoading(false);
-            }
-        }
-
         // 渲染视频网格
         async function renderVideoGrid() {
             const videoGrid = document.getElementById('videoGrid');
             const emptyState = document.getElementById('emptyState');
             
-            if (videoList.length === 0) {
+            if (!videoList || videoList.length === 0) {
                 showEmptyState();
                 return;
             }
@@ -925,11 +1540,25 @@
             emptyState.style.display = 'none';
             videoGrid.innerHTML = '';
 
+            // 批量创建视频卡片，减少DOM操作
+            const fragment = document.createDocumentFragment();
+            
             for (let index = 0; index < videoList.length; index++) {
                 const video = videoList[index];
-                const videoCard = await createVideoCard(video, index);
-                videoGrid.appendChild(videoCard);
+                
+                try {
+                    const videoCard = await createVideoCard(video, index);
+                    fragment.appendChild(videoCard);
+                } catch (error) {
+                    console.error(`创建视频卡片失败: ${video.filename}`, error);
+                    // 继续处理下一个视频，不中断整个流程
+                }
             }
+            
+            videoGrid.appendChild(fragment);
+            
+            // 显示网格
+            videoGrid.style.display = 'grid';
         }
 
         // 创建视频卡片（支持缩略图）
@@ -937,12 +1566,34 @@
             const card = document.createElement('div');
             card.className = 'video-card';
             card.setAttribute('data-index', index);
+            card.setAttribute('data-filename', video.filename); // 新增：存储文件名用于验证
+            
+            // 如果已预加载，添加标记
+            if (preloadedVideos.has(video.filename)) {
+                card.classList.add('preloaded');
+            }
             
             let clickTimeout;
             card.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
+                // 验证数据一致性
+                const cardFilename = card.getAttribute('data-filename');
+                const cardIndex = parseInt(card.getAttribute('data-index'));
+                
+                if (cardFilename !== video.filename || cardIndex !== index) {
+                    console.error('视频卡片数据不一致，正在重新加载列表...');
+                    refreshVideoList();
+                    return;
+                }
+                
+                if (isLoadingVideo) {
+                    showNotification('视频正在加载中，请稍候...', 'error');
+                    return;
+                }
+                
+                // 防止重复点击
                 if (clickTimeout) {
                     clearTimeout(clickTimeout);
                 }
@@ -952,7 +1603,7 @@
                 }, 100);
             };
 
-            // 根据文件名选择图标
+            // 选择合适的图标
             let icon = 'video';
             const filename = video.filename.toLowerCase();
             if (filename.includes('雷达') || filename.includes('radar')) {
@@ -970,7 +1621,6 @@
             const sizeText = video.size ? formatFileSize(video.size) : '未知大小';
             const modifiedText = video.modified ? formatDate(new Date(video.modified)) : '未知日期';
 
-            // 创建基础HTML结构
             card.innerHTML = `
                 <div class="video-thumbnail loading">
                     <i class="fas fa-${icon}"></i>
@@ -984,9 +1634,9 @@
                 </div>
             `;
 
-            // 异步生成缩略图
+            // 异步生成缩略图，增加错误处理
             const thumbnailDiv = card.querySelector('.video-thumbnail');
-            const videoUrl = `/api/download_video/${video.filename}`;
+            const videoUrl = `/api/stream_video/${encodeURIComponent(video.filename)}`;
             
             try {
                 const thumbnailUrl = await generateVideoThumbnail(videoUrl, video.filename);
@@ -995,20 +1645,26 @@
                     const img = document.createElement('img');
                     img.src = thumbnailUrl;
                     img.alt = video.filename;
+                    
                     img.onload = () => {
-                        thumbnailDiv.innerHTML = '';
-                        thumbnailDiv.appendChild(img);
-                        thumbnailDiv.classList.remove('loading');
+                        if (thumbnailDiv.parentElement === card) { // 确保元素仍然存在
+                            thumbnailDiv.innerHTML = '';
+                            thumbnailDiv.appendChild(img);
+                            thumbnailDiv.classList.remove('loading');
+                        }
                     };
+                    
                     img.onerror = () => {
-                        thumbnailDiv.classList.remove('loading');
-                        console.warn('缩略图加载失败:', video.filename);
+                        if (thumbnailDiv.parentElement === card) {
+                            thumbnailDiv.classList.remove('loading');
+                            console.warn(`缩略图加载失败: ${video.filename}`);
+                        }
                     };
                 } else {
                     thumbnailDiv.classList.remove('loading');
                 }
             } catch (error) {
-                console.warn('生成缩略图失败:', video.filename, error);
+                console.warn(`生成缩略图失败: ${video.filename}`, error);
                 thumbnailDiv.classList.remove('loading');
             }
 
@@ -1017,62 +1673,17 @@
 
         // 加载视频并滚动到播放器
         function loadVideoAndScroll(filename, index) {
+            // 如果视频已预加载，给用户反馈
+            if (preloadedVideos.has(filename)) {
+                showNotification('该视频已预加载，即将快速播放', 'success');
+            }
+            
             loadVideo(filename, index);
             
             if (isMobile) {
                 setTimeout(() => {
                     scrollToVideoPlayer();
                 }, 200);
-            }
-        }
-
-        // 加载视频（增强自动播放功能）
-        async function loadVideo(filename, index) {
-            const videoPlayer = document.getElementById('videoPlayer');
-            const videoSource = document.getElementById('videoSource');
-            const currentVideoTitle = document.getElementById('currentVideoTitle');
-            const currentVideoMeta = document.getElementById('currentVideoMeta');
-            
-            const videoUrl = `/api/download_video/${filename}`;
-            
-            // 暂停当前视频
-            if (!videoPlayer.paused) {
-                videoPlayer.pause();
-            }
-            
-            videoSource.src = videoUrl;
-            videoPlayer.load();
-            
-            // 更新视频信息
-            const video = videoList[index];
-            currentVideoTitle.textContent = video.name || video.filename;
-            currentVideoMeta.innerHTML = `
-                <span><i class="fas fa-file"></i> ${formatFileSize(video.size)}</span>
-                <span><i class="fas fa-calendar"></i> ${formatDate(new Date(video.modified))}</span>
-            `;
-            
-            // 更新选中状态
-            document.querySelectorAll('.video-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            
-            const selectedCard = document.querySelector(`[data-index="${index}"]`);
-            if (selectedCard) {
-                selectedCard.classList.add('selected');
-            }
-            
-            currentVideo = { filename, index };
-            
-            // 自动播放逻辑
-            if (autoplayEnabled) {
-                try {
-                    await attemptAutoplay(videoPlayer);
-                } catch (error) {
-                    console.log('自动播放受限:', error.message);
-                    showNotification(`已加载: ${video.name} - 请点击播放`, 'success');
-                }
-            } else {
-                showNotification(`已加载: ${video.name}`, 'success');
             }
         }
 
@@ -1083,15 +1694,12 @@
                     videoPlayer.removeEventListener('canplaythrough', onCanPlayThrough);
                     
                     try {
-                        // 设置静音以提高自动播放成功率
                         videoPlayer.muted = true;
-                        
                         const playPromise = videoPlayer.play();
                         
                         if (playPromise !== undefined) {
                             await playPromise;
                             
-                            // 如果成功播放，尝试取消静音
                             setTimeout(() => {
                                 if (userHasInteracted) {
                                     videoPlayer.muted = false;
@@ -1106,7 +1714,6 @@
                             resolve();
                         }
                     } catch (error) {
-                        // 自动播放失败，保持静音状态
                         videoPlayer.muted = true;
                         reject(error);
                     }
@@ -1155,7 +1762,6 @@
                 updateAutoplayIndicator(false);
             });
 
-            // 用户首次交互后取消静音
             videoPlayer.addEventListener('click', function() {
                 if (videoPlayer.muted && userHasInteracted) {
                     videoPlayer.muted = false;
@@ -1221,7 +1827,6 @@
                 return;
             }
             
-            // 用户主动播放时取消静音
             if (videoPlayer.muted && userHasInteracted) {
                 videoPlayer.muted = false;
             }
@@ -1248,7 +1853,6 @@
             const newVolume = Math.max(0, Math.min(1, videoPlayer.volume + delta));
             videoPlayer.volume = newVolume;
             
-            // 如果调节音量，自动取消静音
             if (videoPlayer.muted && newVolume > 0) {
                 videoPlayer.muted = false;
             }
@@ -1292,11 +1896,12 @@
         function downloadVideo() {
             if (currentVideo) {
                 const link = document.createElement('a');
-                link.href = `/api/download_video/${currentVideo.filename}`;
+                link.href = `/api/download_video/${encodeURIComponent(currentVideo.filename)}`;
                 link.download = currentVideo.filename;
                 link.click();
                 
-                showNotification(`开始下载: ${videoList[currentVideo.index].name}`, 'success');
+                const videoName = videoList[currentVideo.index] ? videoList[currentVideo.index].name : currentVideo.filename;
+                showNotification(`开始下载: ${videoName}`, 'success');
             } else {
                 showNotification('请先选择要下载的视频', 'error');
             }
@@ -1305,8 +1910,16 @@
         // 刷新视频列表
         async function refreshVideoList() {
             showNotification('正在刷新视频列表...', 'success');
-            thumbnailCache.clear(); // 清除缩略图缓存
-            await loadVideoList();
+            thumbnailCache.clear();
+            preloadedVideos.clear();
+            systemHealthy = true;
+            
+            // 清除错误状态
+            document.querySelectorAll('.video-card').forEach(card => {
+                card.classList.remove('error', 'selected');
+            });
+            
+            await startPreloadProcess();
         }
 
         function showAbout() {
@@ -1338,6 +1951,11 @@
             const notificationText = document.getElementById('notificationText');
             const icon = notification.querySelector('i');
             
+            // 防止重复显示相同消息
+            if (notification.classList.contains('show') && notificationText.textContent === message) {
+                return;
+            }
+            
             notificationText.textContent = message;
             notification.className = `notification ${type}`;
             
@@ -1351,9 +1969,12 @@
             
             notification.classList.add('show');
             
+            // 错误消息显示更长时间
+            const displayTime = type === 'error' ? 6000 : 4000;
+            
             setTimeout(() => {
                 notification.classList.remove('show');
-            }, 4000);
+            }, displayTime);
         }
 
         // 工具函数
