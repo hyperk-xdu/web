@@ -2,7 +2,7 @@
 # 电力波形分析系统 - 400点批量数据处理版本
 # 支持客户端400点批量发送，RMS计算和正弦波形生成
 # ==============================================================================
-
+from fastapi.responses import FileResponse
 from fastapi import FastAPI, Request, UploadFile, File, Form, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -267,7 +267,7 @@ class AutoEmailAlertSystem:
 # ==============================================================================
 # 创建邮件告警系统实例
 # ==============================================================================
-email_alert_system = AutoEmailAlertSystem(auto_start=True)
+email_alert_system = AutoEmailAlertSystem(auto_start=False)
 
 # ==============================================================================
 # 应用启动事件处理
@@ -278,10 +278,10 @@ async def startup_event():
     logger.info("🚀 FastAPI应用启动完成")
     logger.info("📧 检查邮件告警系统状态...")
     
-    # 确保邮件系统已启动
-    if not email_alert_system.is_running:
-        logger.info("🔄 邮件系统未运行，正在启动...")
-        email_alert_system.start_email_alerts()
+    # # 确保邮件系统已启动
+    # if not email_alert_system.is_running:
+    #     logger.info("🔄 邮件系统未运行，正在启动...")
+    #     email_alert_system.start_email_alerts()
     
     # 打印系统状态
     status = email_alert_system.get_status()
@@ -1911,7 +1911,16 @@ async def test_email_send():
 
 
 
+# ==============================================================================
+# Logo静态文件服务
+# ==============================================================================
+LOGO_DIR = os.path.join(BASE_DIR, "logo")
+os.makedirs(LOGO_DIR, exist_ok=True)
 
+@app.get("/logo/{filename}", include_in_schema=False)
+async def get_logo(filename: str):
+    """提供logo图片访问"""
+    return FileResponse(os.path.join(LOGO_DIR, filename))
 
 # ==============================================================================
 # 健康检查更新
