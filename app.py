@@ -42,6 +42,19 @@ BASE_DIR = os.path.dirname(__file__)
 VIDEO_DIR = os.path.join(BASE_DIR, "videos")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
+# 自定义视频展示顺序配置
+# 只有在此列表中配置的视频才会显示
+# 未在此列表中配置的视频将不会显示
+CUSTOM_VIDEO_ORDER = [
+    "湖南卫视舞蹈风暴.mp4",
+    "春晚.mp4"
+    # 示例：按您的需求修改这个列表
+    # "重要视频1.mp4",
+    # "重要视频2.mp4", 
+    # "演示视频.mp4",
+    # 添加更多视频文件名...
+]
+
 # 确保目录存在
 os.makedirs(VIDEO_DIR, exist_ok=True)
 os.makedirs(TEMPLATES_DIR, exist_ok=True)
@@ -53,9 +66,32 @@ preload_tasks = {}
 # 模板配置
 templates = Jinja2Templates(directory=TEMPLATES_DIR) if os.path.exists(TEMPLATES_DIR) else None
 
+# 静态文件配置
+# app.mount("/static", StaticFiles(directory="web"), name="static")
+
 # ==============================================================================
 # 工具函数
 # ==============================================================================
+
+def apply_custom_video_order(video_files: list) -> list:
+    """应用自定义视频排序 - 只显示配置的视频"""
+    if not CUSTOM_VIDEO_ORDER:
+        # 如果没有自定义顺序，返回空列表（不显示任何视频）
+        return []
+    
+    # 只显示在CUSTOM_VIDEO_ORDER中配置的视频
+    ordered_videos = []
+    
+    # 创建文件名到视频对象的映射
+    video_map = {video["filename"]: video for video in video_files}
+    
+    # 按自定义顺序添加视频
+    for filename in CUSTOM_VIDEO_ORDER:
+        if filename in video_map:
+            ordered_videos.append(video_map[filename])
+    
+    # 只返回配置的视频，不包含其他视频
+    return ordered_videos
 
 def is_valid_video_file(file_path: str) -> bool:
     """验证视频文件是否有效且可读取"""
@@ -301,8 +337,10 @@ async def get_video_list():
                 "failed_files": []
             }
         
-        # 按修改时间排序并转换时间格式
-        video_files.sort(key=lambda x: x["modified"], reverse=True)
+        # 应用自定义排序
+        video_files = apply_custom_video_order(video_files)
+        
+        # 转换时间格式
         for video_file in video_files:
             video_file["modified"] = datetime.fromtimestamp(video_file["modified"]).isoformat()
         
@@ -922,6 +960,45 @@ async def recover_system():
             "message": f"系统恢复失败: {str(e)}"
         }
 
+@app.get("/api/video_thumbnail/{filename}")
+async def get_video_thumbnail(filename: str):
+    """获取视频缩略图（第一帧）"""
+    try:
+        safe_filename = sanitize_filename(filename)
+        file_path = os.path.join(VIDEO_DIR, safe_filename)
+        
+        if not is_valid_video_file(file_path):
+            raise HTTPException(status_code=404, detail="视频文件不存在")
+        
+        # 读取视频文件的一小部分作为预览
+        chunk_size = min(512 * 1024, os.path.getsize(file_path))  # 512KB或文件大小
+        
+        async def thumbnail_generator():
+            async with aiofiles.open(file_path, 'rb') as video_file:
+                chunk = await video_file.read(chunk_size)
+                yield chunk
+        
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type is None:
+            mime_type = 'video/mp4'
+        
+        return StreamingResponse(
+            thumbnail_generator(),
+            media_type=mime_type,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(chunk_size),
+                "Cache-Control": "public, max-age=86400",  # 缓存1天
+                "X-Thumbnail": "true"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取缩略图失败 {filename}: {e}")
+        raise HTTPException(status_code=500, detail="获取缩略图失败")
+        
 @app.get("/api/performance_info")
 async def performance_info():
     """性能信息接口"""
